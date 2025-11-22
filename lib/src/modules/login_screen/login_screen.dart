@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:kumbha_path/main_layout.dart';
 import 'package:kumbha_path/src/constant/app_responsive.dart';
 import 'package:kumbha_path/src/constant/language_helper.dart';
+import 'package:kumbha_path/src/modules/login_screen/otp_verify_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -145,7 +146,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context)=>OtpVerifyScreen() ));
+                      },
                       child: Text(
                         LanguageHelper.t('get_otp'),
                         style: TextStyle(

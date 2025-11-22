@@ -52,6 +52,33 @@ class LanguageHelper {
         'hi': 'भाषा चुनें',
         'mr': 'भाषा निवडा',
       },
+
+      'verify_your_number': {
+  'en': 'Verify Your Number',
+  'hi': 'अपने नंबर की पुष्टि करें',
+  'mr': 'आपला नंबर सत्यापित करा',
+},
+'otp_verify_message': {
+  'en': 'Enter the 6-digit code sent to your mobile number.',
+  'hi': 'अपने मोबाइल नंबर पर भेजा गया 6 अंकों का कोड दर्ज करें।',
+  'mr': 'तुमच्या मोबाइल क्रमांकावर पाठवलेला ६ अंकी कोड टाका.',
+},
+'verify_button': {
+  'en': 'Verify',
+  'hi': 'पुष्टि करें',
+  'mr': 'सत्यापित करा',
+},
+'resend_in_prefix': {
+  'en': 'Resend code in',
+  'hi': 'कोड पुनः भेजें',
+  'mr': 'कोड पुन्हा पाठवा',
+},
+'didnt_receive_resend': {
+  'en': "Didn't receive code? Resend",
+  'hi': 'कोड नहीं मिला? फिर से भेजें',
+  'mr': 'कोड मिळाला नाही? पुन्हा पाठवा',
+},
+
     };
 
     final lang = currentLang.value;
@@ -129,7 +156,7 @@ class LanguageIconButton extends StatelessWidget {
     return IconButton(
       onPressed: () => showLanguageSelectorBottomSheet(context),
       icon: Image.asset(
-        'assets/icons/internet.png', // your language/internet icon
+        'assets/icons/internet.png', 
         height: 24,
         width: 24,
       ),
