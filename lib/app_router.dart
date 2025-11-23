@@ -1,7 +1,15 @@
 
 import 'package:flutter/material.dart';
+import 'package:kumbha_path/src/modules/ai_chat/ai_chat_screen.dart';
+import 'package:kumbha_path/src/modules/dashboard/dashboard.dart';
+import 'package:kumbha_path/src/modules/event/events.dart';
+import 'package:kumbha_path/src/modules/journel/journer_screen.dart';
 import 'package:kumbha_path/src/modules/launch_screen/launch_screen.dart';
+import 'package:kumbha_path/src/modules/live_crowd/live_crowd_map.dart';
+import 'package:kumbha_path/src/modules/live_updates/live_updates.dart';
 import 'package:kumbha_path/src/modules/login_screen/login_screen.dart';
+import 'package:kumbha_path/src/modules/setting/setting.dart';
+import 'package:kumbha_path/src/modules/temple_explorer/near_temples.dart';
 
 class AppRouter {
   Route? onGenerateRoute(RouteSettings routeSettings) {
@@ -9,28 +17,40 @@ class AppRouter {
       case '/loginScreen':
         return MaterialPageRoute(builder: (_) => const LoginScreen());
 
-      // case '/registrationScreen':
-      //   return MaterialPageRoute(builder: (_) => const RegistrationScreen());
+      case '/dashboardScreen':
+        return MaterialPageRoute(builder: (_) => const Dashboard());
 
-      // case '/dashboardScreen':
-      //   return MaterialPageRoute(builder: (_) => const DashBoardScreen());
+      case '/aichat':
+        return MaterialPageRoute(builder: (_) => const AskGuruAiScreen());
+
+      case '/launchScreen':
+        return MaterialPageRoute(builder: (_) => const LaunchScreen());
+
+      case '/shahiEvents':
+        return MaterialPageRoute(builder: (_) => const ShahiEvents());
 
 
-      // case '/launchScreen':
-      //   return MaterialPageRoute(builder: (_) => const LaunchScreen()); 
+      case '/liveCroud':
+        return MaterialPageRoute(builder: (_) => const LiveCrowdMap()); 
 
-      // case '/tutorialScreen':
-      //   return MaterialPageRoute(builder: (_) => const TutorialScreen());
+        
 
-      // case '/settingScreen':
-      //   return MaterialPageRoute(builder: (_) => const SettingScreen());
+      case '/journal':
+        return MaterialPageRoute(builder: (_) => const JournerScreen());
 
-      // case '/aimilaunchScreen':
-      //   return MaterialPageRoute(builder: (_) => const AimiScreen());
+      case '/notifications':
+        return MaterialPageRoute(builder: (_) => const LiveUpdates());
+
+        
+
+      case '/nearTemples':
+        return MaterialPageRoute(builder: (_) => const NearTemples());
+
+      case '/setting':
+        return MaterialPageRoute(builder: (_) => const Setting());
 
     
-      // case '/welcomeScreen':
-      //   return MaterialPageRoute(builder: (_) => const AimaWelcomeScreen());
+      
 
       // case '/getStartScreen':
       //   return MaterialPageRoute(builder: (_) => const ChatGetStartScreen());
