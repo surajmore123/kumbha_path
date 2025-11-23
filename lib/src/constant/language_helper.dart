@@ -79,6 +79,115 @@ class LanguageHelper {
   'mr': 'कोड मिळाला नाही? पुन्हा पाठवा',
 },
 
+'dashboard_title': {
+  'en': 'Sadhana Path',
+  'hi': 'साधना पथ',
+  'mr': 'साधना पथ',
+},
+'dashboard_greeting': {
+  'en': 'Namaste, Suraj',
+  'hi': 'नमस्ते, सूरज',
+  'mr': 'नमस्ते, सूरज',
+},
+'dashboard_quote': {
+  'en': '"The journey of a thousand miles begins with a\nsingle step." - Lao Tzu',
+  'hi': '"हजार मील की यात्रा एक छोटे से कदम से शुरू होती है।"\n- लाओ त्ज़ु',
+  'mr': '"हजारो मैलांचा प्रवास एका छोट्या पावलाने सुरू होतो."\n- लाओ त्सू',
+},
+'ai_guru_title': {
+  'en': 'AI Guru Chat',
+  'hi': 'एआई गुरु चैट',
+  'mr': 'एआय गुरु चॅट',
+},
+'ai_guru_subtitle': {
+  'en': 'Seek spiritual guidance',
+  'hi': 'आध्यात्मिक मार्गदर्शन प्राप्त करें',
+  'mr': 'आध्यात्मिक मार्गदर्शन मिळवा',
+},
+'temple_explorer_title': {
+  'en': 'Temple Explorer',
+  'hi': 'मंदिर एक्सप्लोरर',
+  'mr': 'मंदिर एक्सप्लोरर',
+},
+'temple_explorer_subtitle': {
+  'en': 'Discover sacred places',
+  'hi': 'पवित्र स्थान खोजें',
+  'mr': 'पवित्र स्थळे शोधा',
+},
+'live_crowd_title': {
+  'en': 'Live Crowd Map & Alerts',
+  'hi': 'लाइव भीड़ मानचित्र और अलर्ट',
+  'mr': 'लाइव्ह गर्दी नकाशा आणि सूचना',
+},
+'live_crowd_subtitle': {
+  'en': 'Real-time updates & safety',
+  'hi': 'रीयल-टाइम अपडेट और सुरक्षा',
+  'mr': 'रिअल-टाईम अपडेट्स आणि सुरक्षा',
+},
+'journal_home_title': {
+  'en': 'My Kumbh Journal Home',
+  'hi': 'मेरा कुंभ जर्नल होम',
+  'mr': 'माझा कुंभ जर्नल होम',
+},
+'journal_home_subtitle': {
+  'en': 'Reflect on your journey',
+  'hi': 'अपनी यात्रा पर चिंतन करें',
+  'mr': 'तुमच्या प्रवासाचा विचार करा',
+},
+
+'nearby_temples_title': {
+  'en': 'Nearby Temples',
+  'hi': 'नज़दीकी मंदिर',
+  'mr': 'जवळचे मंदिरे',
+},
+'temple_kashi_short_name': {
+  'en': 'Kashi Vishwanath',
+  'hi': 'काशी विश्वनाथ',
+  'mr': 'काशी विश्वनाथ',
+},
+'temple_kashi_distance': {
+  'en': '1.2 km away',
+  'hi': '1.2 किमी दूर',
+  'mr': '1.2 कि.मी. दूर',
+},
+'temple_kashi_title': {
+  'en': 'Kashi Vishwanath Temple',
+  'hi': 'काशी विश्वनाथ मंदिर',
+  'mr': 'काशी विश्वनाथ मंदिर',
+},
+'temple_kashi_description': {
+  'en': 'A sacred abode of Lord Shiva, on the western bank of the holy river Ganga.',
+  'hi': 'भगवान शिव का पवित्र धाम, पवित्र गंगा नदी के पश्चिमी तट पर स्थित।',
+  'mr': 'भगवान शिवांचे पवित्र निवासस्थान, पवित्र गंगेच्या पश्चिम काठावर वसलेले.',
+},
+'temple_mahakal_title': {
+  'en': 'Mahakaleshwar Temple',
+  'hi': 'महाकालेश्वर मंदिर',
+  'mr': 'महाकालेश्वर मंदिर',
+},
+'temple_mahakal_description': {
+  'en': 'One of the twelve Jyotirlingas, this ancient temple is a major pilgrimage site.',
+  'hi': 'बारह ज्योतिर्लिंगों में से एक, यह प्राचीन मंदिर एक प्रमुख तीर्थ स्थल है।',
+  'mr': 'बारा ज्योतिर्लिंगांपैकी एक, हे प्राचीन मंदिर एक प्रमुख तीर्थक्षेत्र आहे.',
+},
+'temple_sankat_title': {
+  'en': 'Sankat Mochan Temple',
+  'hi': 'संकट मोचन मंदिर',
+  'mr': 'संकट मोचन मंदिर',
+},
+'temple_sankat_description': {
+  'en': 'Dedicated to Lord Hanuman, known for offering relief from troubles and suffering.',
+  'hi': 'भगवान हनुमान को समर्पित, जो संकट और कष्टों से मुक्ति देने के लिए प्रसिद्ध हैं।',
+  'mr': 'भगवान हनुमानांना समर्पित, जे संकट आणि दुःखातून मुक्ती देण्यासाठी प्रसिद्ध आहेत.',
+},
+'temple_learn_more': {
+  'en': 'Learn More',
+  'hi': 'और जानें',
+  'mr': 'अधिक जाणून घ्या',
+},
+
+
+
     };
 
     final lang = currentLang.value;
