@@ -10,6 +10,7 @@ import 'package:kumbha_path/src/modules/live_updates/live_updates.dart';
 import 'package:kumbha_path/src/modules/login_screen/login_screen.dart';
 import 'package:kumbha_path/src/modules/setting/setting.dart';
 import 'package:kumbha_path/src/modules/temple_explorer/near_temples.dart';
+import 'package:kumbha_path/src/modules/temple_explorer/temple_detail_screen.dart';
 
 class AppRouter {
   Route? onGenerateRoute(RouteSettings routeSettings) {
@@ -45,6 +46,9 @@ class AppRouter {
 
       case '/nearTemples':
         return MaterialPageRoute(builder: (_) => const NearTemples());
+
+      case '/templeDetail':
+        return MaterialPageRoute(builder: (_) => const TempleDetailsScreen());
 
       case '/setting':
         return MaterialPageRoute(builder: (_) => const Setting());
