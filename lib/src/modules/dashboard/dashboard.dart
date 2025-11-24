@@ -23,10 +23,15 @@ class Dashboard extends StatelessWidget {
         leadingWidth: 35,
         leading: Padding(
           padding: const EdgeInsets.only(left: 12),
-          child: SizedBox(
-            width: 24,
-            height: 24,
-            child: Image.asset('assets/icons/user.png', fit: BoxFit.contain),
+          child: GestureDetector(
+            onTap: () {
+               Navigator.pushNamed(context, '/setting');
+            },
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: Image.asset('assets/icons/user.png', fit: BoxFit.contain),
+            ),
           ),
         ),
         title: Text(
@@ -130,12 +135,7 @@ class Dashboard extends StatelessWidget {
                     titleKey: 'live_crowd_title',
                     subtitleKey: 'live_crowd_subtitle',
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AskGuruAiScreen(),
-                        ),
-                      );
+                     Navigator.pushNamed(context, '/liveCroud');
                     },
                   ),
 
@@ -147,12 +147,7 @@ class Dashboard extends StatelessWidget {
                     titleKey: 'journal_home_title',
                     subtitleKey: 'journal_home_subtitle',
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AskGuruAiScreen(),
-                        ),
-                      );
+                      Navigator.pushNamed(context, '/journal');
                     },
                   ),
                 ],

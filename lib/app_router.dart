@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:kumbha_path/src/modules/ai_chat/ai_chat_screen.dart';
 import 'package:kumbha_path/src/modules/dashboard/dashboard.dart';
 import 'package:kumbha_path/src/modules/event/events.dart';
+import 'package:kumbha_path/src/modules/journel/create_my_journer.dart';
 import 'package:kumbha_path/src/modules/journel/journer_screen.dart';
 import 'package:kumbha_path/src/modules/launch_screen/launch_screen.dart';
 import 'package:kumbha_path/src/modules/live_crowd/live_crowd_map.dart';
@@ -38,6 +39,9 @@ class AppRouter {
 
       case '/journal':
         return MaterialPageRoute(builder: (_) => const JournerScreen());
+
+      case '/myJournalEntry':
+        return MaterialPageRoute(builder: (_) => const NewJournalEntryScreen());
 
       case '/notifications':
         return MaterialPageRoute(builder: (_) => const LiveUpdates());

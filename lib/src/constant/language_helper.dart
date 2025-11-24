@@ -308,7 +308,467 @@ class LanguageHelper {
         "हमारे एआई विश्लेषण के अनुसार, सुबह की 'मंगला आरती' के समय दर्शन करना सबसे गहरा आध्यात्मिक अनुभव प्रदान करता है। यहाँ दर्ज की गई ऊर्जा तरंगें इस समय विशेष रूप से उच्च दिखाई देती हैं, जो प्राचीन शास्त्रों के वर्णन से मेल खाती हैं। शांत वातावरण के लिए, सप्ताह के दिनों में देर दोपहर का समय उपयुक्त है। मंदिर की वास्तुकला कई पुनर्निर्माणों का परिणाम है, जो विभिन्न शैलियों को मिलाकर अद्वितीय आध्यात्मिक वातावरण बनाती है।",
     "mr":
         "आमच्या एआय विश्लेषणानुसार, पहाटेची 'मंगला आरती'च्या वेळी दर्शन केल्यास सर्वात गहन आध्यात्मिक अनुभव मिळतो. येथे नोंदवलेले ऊर्जेचे पॅटर्न या वेळी विशेष टोक गाठतात, जे प्राचीन शास्त्रांतील वर्णनांशी सुसंगत आहे. अधिक शांत अनुभवासाठी, आठवड्याच्या दिवशी उशिरा दुपारचा वेळ आदर्श आहे. मंदिराची रचना अनेक पुनर्बांधणीनंतर विकसित झाली असून विविध शैलींचे सुंदर मिश्रण करून एक अद्वितीय आध्यात्मिक वातावरण निर्माण करते."
+  },
+
+  "live_crowd_location": {
+    "en": "Prayagraj Mela Area",
+    "hi": "प्रयागराज मेला क्षेत्र",
+    "mr": "प्रयागराज मेला परिसर"
+  },
+
+  "live_crowd_quick_alerts": {
+    "en": "Quick Alerts",
+    "hi": "तत्काल अलर्ट",
+    "mr": "जलद सूचना"
+  },
+
+  "live_crowd_next_snan_label": {
+    "en": "Next Snan Schedule",
+    "hi": "अगला स्नान समय",
+    "mr": "पुढील स्नान वेळ"
+  },
+  "live_crowd_next_snan_value": {
+    "en": "04:30 AM - Triveni Sangam",
+    "hi": "सुबह 04:30 - त्रिवेणी संगम",
+    "mr": "पहाटे ४:३० - त्रिवेणी संगम"
+  },
+
+  "live_crowd_traffic_category": {
+    "en": "Traffic Alert",
+    "hi": "यातायात अलर्ट",
+    "mr": "वाहतूक सूचना"
+  },
+  "live_crowd_traffic_title": {
+    "en": "Traffic Congestion on Route A",
+    "hi": "रूट A पर भारी ट्रैफिक",
+    "mr": "मार्ग अ वर प्रचंड वाहतूक"
+  },
+  "live_crowd_traffic_description": {
+    "en":
+        "Heavy traffic near Shastri Bridge. Consider an alternative route.",
+    "hi":
+        "शास्त्री ब्रिज के पास भारी ट्रैफिक। कृपया वैकल्पिक मार्ग का उपयोग करें।",
+    "mr":
+        "शास्त्री पुलाजवळ मोठी वाहतूक आहे. कृपया पर्यायी मार्गाचा वापर करा."
+  },
+
+  "live_crowd_crowd_category": {
+    "en": "Crowd Alert",
+    "hi": "भीड़ अलर्ट",
+    "mr": "गर्दी सूचना"
+  },
+  "live_crowd_crowd_title": {
+    "en": "High Crowd at Gate No. 3",
+    "hi": "गेट नं. 3 पर भारी भीड़",
+    "mr": "गेट क्र. ३ येथे मोठी गर्दी"
+  },
+  "live_crowd_crowd_description": {
+    "en":
+        "Gate is temporarily closed. Please use Gate No. 4 or 5.",
+    "hi":
+        "गेट अस्थायी रूप से बंद है। कृपया गेट नं. 4 या 5 का उपयोग करें।",
+    "mr":
+        "गेट तात्पुरते बंद आहे. कृपया गेट क्र. ४ किंवा ५ वापरा."
+  },
+  "events_appbar_title": {
+    "en": "Upcoming Snans & Events",
+    "hi": "आगामी स्नान और कार्यक्रम",
+    "mr": "येणारे स्नान आणि कार्यक्रम"
+  },
+
+  "shahi_snan_timing": {
+    "en": "14th April, 4:00 AM - 6:00 AM",
+    "hi": "14 अप्रैल, सुबह 4:00 - 6:00",
+    "mr": "१४ एप्रिल, पहाटे ४:०० - ६:००"
+  },
+  "shahi_snan_title": {
+    "en": "Shahi Snan",
+    "hi": "शाही स्नान",
+    "mr": "शाही स्नान"
+  },
+  "shahi_snan_location": {
+    "en": "Har Ki Pauri Ghat",
+    "hi": "हर की पौड़ी घाट",
+    "mr": "हर की पौडी घाट"
+  },
+  "shahi_snan_description": {
+    "en": "Join the most auspicious royal bath of the Kumbh Mela.",
+    "hi": "कुंभ मेले के सबसे शुभ शाही स्नान में शामिल हों।",
+    "mr": "कुंभ मेळ्यातील सर्वात शुभ शाही स्नानात सहभागी व्हा."
+  },
+
+  "events_remind_me": {
+    "en": "Remind Me",
+    "hi": "मुझे याद दिलाएं",
+    "mr": "मला स्मरण करा"
+  },
+
+  "events_other_key_events": {
+    "en": "Other Key Events",
+    "hi": "अन्य प्रमुख कार्यक्रम",
+    "mr": "इतर महत्त्वाचे कार्यक्रम"
+  },
+
+  "event_ganga_aarti_title": {
+    "en": "Ganga Aarti",
+    "hi": "गंगा आरती",
+    "mr": "गंगा आरती"
+  },
+  "event_ganga_aarti_description": {
+    "en": "Daily evening prayer ceremony by the river.",
+    "hi": "नदी किनारे होने वाली दैनिक संध्या आरती।",
+    "mr": "नदीकाठी दररोज होणारी संध्याकाळची आरती."
+  },
+
+  "event_sant_samagam_title": {
+    "en": "Sant Samagam",
+    "hi": "संत समागम",
+    "mr": "संत समागम"
+  },
+  "event_sant_samagam_description": {
+    "en": "Congregation of revered saints and spiritual leaders.",
+    "hi": "पूज्य संतों और आध्यात्मिक गुरुओं का संगम।",
+    "mr": "पूज्य संत आणि आध्यात्मिक गुरूंची मेळाव्यातील उपस्थिती."
+  },
+
+  "event_cultural_evening_title": {
+    "en": "Cultural Evening",
+    "hi": "सांस्कृतिक संध्या",
+    "mr": "सांस्कृतिक संध्या"
+  },
+  "event_cultural_evening_description": {
+    "en": "Celebration of music and dance performances.",
+    "hi": "संगीत और नृत्य प्रस्तुतियों का उत्सव।",
+    "mr": "संगीत आणि नृत्य सादरीकरणांचा उत्सव."
+  },
+  "live_updates_title": {
+    "en": "Live Updates & Alerts",
+    "hi": "लाइव अपडेट और अलर्ट",
+    "mr": "थेट अपडेट आणि सूचना"
+  },
+  "live_updates_tab_all": {
+    "en": "All",
+    "hi": "सब",
+    "mr": "सर्व"
+  },
+  "live_updates_tab_alerts": {
+    "en": "Alerts",
+    "hi": "अलर्ट",
+    "mr": "सूचना"
+  },
+  "live_updates_tab_messages": {
+    "en": "Messages",
+    "hi": "संदेश",
+    "mr": "संदेश"
+  },
+
+  "live_update_high_crowd_title": {
+    "en": "High crowd near Har Ki Pauri",
+    "hi": "हर की पौड़ी के पास भारी भीड़",
+    "mr": "हर की पौडी जवळ मोठी गर्दी"
+  },
+  "live_update_next_snan_title": {
+    "en": "Next Snan 5:30 AM tomorrow. Prepare early.",
+    "hi": "अगला स्नान कल सुबह 5:30 बजे. पहले से तैयारी करें।",
+    "mr": "पुढील स्नान उद्या पहाटे ५:३०. आधीच तयारी करा."
+  },
+  "live_update_shuttle_title": {
+    "en": "Shuttle services are now active from the main camp.",
+    "hi": "मुख्य शिविर से शटल सेवा अब शुरू हो गई है।",
+    "mr": "मुख्य तळावरून शटल सेवा आता सुरू झाली आहे."
+  },
+  "live_update_gate_closed_title": {
+    "en": "Gate no. 3 is temporarily closed for maintenance.",
+    "hi": "गेट नंबर 3 रखरखाव के लिए अस्थायी रूप से बंद है।",
+    "mr": "गेट क्रमांक ३ देखभालीसाठी तात्पुरते बंद आहे."
+  },
+  "live_update_evening_aarti_title": {
+    "en": "Evening Aarti will commence at 6:00 PM at ghat no. 5.",
+    "hi": "सायंकालीन आरती शाम 6 बजे घाट नंबर 5 पर शुरू होगी।",
+    "mr": "सायंकाळची आरती सायं ६ वाजता घाट क्रमांक ५ वर सुरू होईल."
+  },
+  "live_update_light_showers_title": {
+    "en": "Light showers expected this evening. Carry an umbrella.",
+    "hi": "आज शाम हल्की बारिश की संभावना. छाता साथ रखें।",
+    "mr": "आज संध्याकाळी हलक्या सरींची शक्यता. छत्री बाळगा."
+  },
+
+  "live_update_5_mins_ago": {
+    "en": "5 mins ago",
+    "hi": "5 मिनट पहले",
+    "mr": "५ मिनिटांपूर्वी"
+  },
+  "live_update_1_hour_ago": {
+    "en": "1 hour ago",
+    "hi": "1 घंटा पहले",
+    "mr": "१ तासापूर्वी"
+  },
+  "live_update_2_hours_ago": {
+    "en": "2 hours ago",
+    "hi": "2 घंटे पहले",
+    "mr": "२ तासांपूर्वी"
+  },
+  "live_update_3_hours_ago": {
+    "en": "3 hours ago",
+    "hi": "3 घंटे पहले",
+    "mr": "३ तासांपूर्वी"
+  },
+  "live_update_4_hours_ago": {
+    "en": "4 hours ago",
+    "hi": "4 घंटे पहले",
+    "mr": "४ तासांपूर्वी"
+  },
+  "journal_title": {
+    "en": "My Kumbh Journal",
+    "hi": "मेरा कुंभ जर्नल",
+    "mr": "माझी कुंभ डायरी"
+  },
+  "journal_ai_reflection": {
+    "en": "AI Reflection",
+    "hi": "एआई चिंतन",
+    "mr": "एआय चिंतन"
+  },
+  "journal_add_entry": {
+    "en": "Add Entry",
+    "hi": "नया लेख जोड़ें",
+    "mr": "नवीन नोंद जोडा"
+  },
+  "journal_prompt_title": {
+    "en": "What inspired you today?",
+    "hi": "आज आपको क्या प्रेरित किया?",
+    "mr": "आज तुम्हाला काय प्रेरणा मिळाली?"
+  },
+  "journal_prompt_subtitle": {
+    "en": "Get a personalized prompt to start your reflection.",
+    "hi": "अपना चिंतन शुरू करने के लिए एक व्यक्तिगत प्रॉम्प्ट प्राप्त करें।",
+    "mr": "स्वतःचा विचार सुरू करण्यासाठी वैयक्तिक प्रॉम्प्ट मिळवा."
+  },
+  "journal_get_ai_prompt": {
+    "en": "Get AI Prompt",
+    "hi": "एआई प्रॉम्प्ट लें",
+    "mr": "एआय प्रॉम्प्ट घ्या"
+  },
+  "journal_past_entries": {
+    "en": "Past Entries",
+    "hi": "पुराने लेख",
+    "mr": "मागील नोंदी"
+  },
+
+  "journal_entry_1_date": {
+    "en": "April 14, 2024",
+    "hi": "14 अप्रैल, 2024",
+    "mr": "१४ एप्रिल, २०२४"
+  },
+  "journal_entry_1_text": {
+    "en": "Today I witnessed the Ganga Aarti for the first time. The...",
+    "hi": "आज मैंने पहली बार गंगा आरती देखी। वह...",
+    "mr": "आज मी पहिल्यांदा गंगा आरती पाहिली. ती..."
+  },
+  "journal_entry_1_mood": {
+    "en": "Peaceful",
+    "hi": "शांतिपूर्ण",
+    "mr": "शांत"
+  },
+
+  "journal_entry_2_date": {
+    "en": "April 12, 2024",
+    "hi": "12 अप्रैल, 2024",
+    "mr": "१२ एप्रिल, २०२४"
+  },
+  "journal_entry_2_text": {
+    "en": "A conversation with a Sadhu opened my mind to new...",
+    "hi": "एक साधु के साथ बातचीत ने मेरा दृष्टिकोण बदल दिया...",
+    "mr": "एका साधूसोबतच्या संवादाने माझा दृष्टीकोन बदलला..."
+  },
+  "journal_entry_2_mood": {
+    "en": "Enlightened",
+    "hi": "प्रबुद्ध",
+    "mr": "प्रबुद्ध"
+  },
+
+  "journal_entry_3_date": {
+    "en": "April 10, 2024",
+    "hi": "10 अप्रैल, 2024",
+    "mr": "१० एप्रिल, २०२४"
+  },
+  "journal_entry_3_text": {
+    "en": "The energy of the crowd during the Shahi Snan was...",
+    "hi": "शाही स्नान के दौरान भीड़ की ऊर्जा अद्भुत थी...",
+    "mr": "शाही स्नानदरम्यानच्या गर्दीची ऊर्जा अफाट होती..."
+  },
+  "journal_entry_3_mood": {
+    "en": "Joyful",
+    "hi": "आनंदित",
+    "mr": "आनंदी"
+  },
+  "journal_new_entry_title": {
+    "en": "New Entry",
+    "hi": "नई प्रविष्टि",
+    "mr": "नवीन नोंद"
+  },
+  "journal_field_title": {
+    "en": "Title",
+    "hi": "शीर्षक",
+    "mr": "शीर्षक"
+  },
+  "journal_field_title_hint": {
+    "en": "A moment of clarity by the river",
+    "hi": "नदी के किनारे मिली स्पष्टता का एक पल",
+    "mr": "नदीकाठी मिळालेला स्पष्टतेचा क्षण"
+  },
+  "journal_add_photo_title": {
+    "en": "Add Photo",
+    "hi": "फ़ोटो जोड़ें",
+    "mr": "फोटो जोडा"
+  },
+  "journal_add_photo_subtitle": {
+    "en": "Add a photo to your memory",
+    "hi": "अपनी याद में एक फ़ोटो जोड़ें",
+    "mr": "तुमच्या आठवणीत एक फोटो जोडा"
+  },
+  "journal_add_photo_button": {
+    "en": "Upload",
+    "hi": "अपलोड",
+    "mr": "अपलोड"
+  },
+  "journal_field_notes": {
+    "en": "Notes",
+    "hi": "नोट्स",
+    "mr": "नोंदी"
+  },
+  "journal_field_notes_hint": {
+    "en": "Write your thoughts and feelings here...",
+    "hi": "अपने विचार और भावनाएँ यहाँ लिखें...",
+    "mr": "तुमचे विचार आणि भावना येथे लिहा..."
+  },
+  "journal_how_feeling": {
+    "en": "How are you feeling?",
+    "hi": "आप कैसा महसूस कर रहे हैं?",
+    "mr": "तुम्ही कसे वाटत आहात?"
+  },
+  "journal_btn_ai_reflection": {
+    "en": "Get AI Reflection on this ✨",
+    "hi": "इस पर एआई चिंतन प्राप्त करें ✨",
+    "mr": "यावर एआय चिंतन मिळवा ✨"
+  },
+  "journal_btn_save_entry": {
+    "en": "Save Entry",
+    "hi": "प्रविष्टि सहेजें",
+    "mr": "नोंद जतन करा"
+  },
+
+  "settings_title": {
+    "en": "Settings",
+    "hi": "सेटिंग्स",
+    "mr": "सेटिंग्ज"
+  },
+
+  // --------------------- Profile Section ---------------------
+  "settings_my_profile": {
+    "en": "My Profile",
+    "hi": "मेरा प्रोफाइल",
+    "mr": "माझे प्रोफाइल"
+  },
+
+  "settings_edit_profile_picture": {
+    "en": "Edit Profile Picture",
+    "hi": "प्रोफाइल तस्वीर बदलें",
+    "mr": "प्रोफाइल फोटो बदला"
+  },
+
+  "settings_full_name": {
+    "en": "Full Name",
+    "hi": "पूरा नाम",
+    "mr": "पूर्ण नाव"
+  },
+
+  "settings_full_name_hint": {
+    "en": "Enter full name",
+    "hi": "पूरा नाम दर्ज करें",
+    "mr": "पूर्ण नाव टाका"
+  },
+
+  "settings_email": {
+    "en": "Email Address",
+    "hi": "ईमेल पता",
+    "mr": "ईमेल पत्ता"
+  },
+
+  "settings_email_hint": {
+    "en": "Enter email address",
+    "hi": "ईमेल पता दर्ज करें",
+    "mr": "ईमेल पत्ता टाका"
+  },
+
+  "settings_save_changes": {
+    "en": "Save Changes",
+    "hi": "परिवर्तन सहेजें",
+    "mr": "बदल जतन करा"
+  },
+
+  // --------------------- Notifications ---------------------
+  "settings_notification_preferences": {
+    "en": "Notification Preferences",
+    "hi": "सूचना वरीयताएँ",
+    "mr": "सूचना प्राधान्ये"
+  },
+
+  "settings_realtime_alerts": {
+    "en": "Real-time Event Alerts",
+    "hi": "रियल-टाइम इवेंट अलर्ट",
+    "mr": "रिअल-टाइम इव्हेंट अलर्ट"
+  },
+
+  "settings_daily_guidance": {
+    "en": "Daily Spiritual Guidance",
+    "hi": "दैनिक आध्यात्मिक मार्गदर्शन",
+    "mr": "दैनिक आध्यात्मिक मार्गदर्शन"
+  },
+
+  "settings_community_news": {
+    "en": "Community News",
+    "hi": "समुदाय समाचार",
+    "mr": "समुदाय बातम्या"
+  },
+
+  "settings_app_updates": {
+    "en": "App Updates",
+    "hi": "ऐप अपडेट्स",
+    "mr": "अॅप अद्यतने"
+  },
+
+  // --------------------- Themes ---------------------
+  "settings_app_theme": {
+    "en": "App Theme",
+    "hi": "ऐप थीम",
+    "mr": "अॅप थीम"
+  },
+
+  "settings_theme_light": {
+    "en": "Light",
+    "hi": "लाइट",
+    "mr": "लाइट"
+  },
+
+  "settings_theme_dark": {
+    "en": "Dark",
+    "hi": "डार्क",
+    "mr": "डार्क"
+  },
+
+  "settings_theme_system": {
+    "en": "System",
+    "hi": "सिस्टम",
+    "mr": "सिस्टम"
+  },
+
+  // --------------------- Logout ---------------------
+  "settings_logout": {
+    "en": "Log Out",
+    "hi": "लॉग आउट",
+    "mr": "लॉग आउट"
   }
+
 
 
 
