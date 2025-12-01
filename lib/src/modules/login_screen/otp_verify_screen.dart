@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:kumbha_path/src/bloc/user_bloc/user_bloc.dart';
+import 'package:kumbha_path/src/bloc/user_bloc/user_event.dart';
+import 'package:kumbha_path/src/bloc/user_bloc/user_state.dart';
+import 'package:kumbha_path/src/components/loader/center_loader.dart';
 import 'package:kumbha_path/src/constant/app_responsive.dart';
 import 'package:kumbha_path/src/constant/language_helper.dart';
 import 'package:kumbha_path/src/modules/dashboard/dashboard.dart';
 
 class OtpVerifyScreen extends StatefulWidget {
-  const OtpVerifyScreen({super.key});
+  final String phoneNumber;
+  const OtpVerifyScreen({super.key, required this.phoneNumber});
 
   @override
   State<OtpVerifyScreen> createState() => _OtpVerifyScreenState();
@@ -26,6 +33,8 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final phoneNumber = widget.phoneNumber;
+    // final phoneNumber = ModalRoute.of(context)!.settings.arguments as String;
     final isMobile = context.isMobile;
     final isTablet = context.isTablet;
     final isDesktop = context.isDesktop;
@@ -50,7 +59,14 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
               ),
             ),
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context)=>Dashboard()));
+              final otp = _otpControllers.map((c) => c.text).join();
+              if (otp.length != 6) {
+                print('Invalid OTP: $otp');
+                return;
+              }
+              context.read<UserBloc>().add(
+                VerifyOtpEvent(phoneNumber: phoneNumber, otp: otp),
+              );
             },
             child: Text(
               LanguageHelper.t('verify_button'),
@@ -81,92 +97,122 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
           final subtitleStyle = Theme.of(context).textTheme.bodyMedium
               ?.copyWith(fontSize: isMobile ? 14 : 16, color: Colors.grey[700]);
 
-          return Center(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal:
-                    isMobile
-                        ? 24
-                        : isTablet
-                        ? 40
-                        : 56,
-                vertical: isMobile ? 16 : 24,
-              ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: isDesktop ? 420 : 500),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      LanguageHelper.t('verify_your_number'),
-                      style: titleStyle,
-                      textAlign: TextAlign.center,
+          return BlocConsumer<UserBloc, UserState>(
+            listener: (context, state) {
+              if (state.status == UserStatus.success) {
+                CenterLoader.hide();
+
+                Fluttertoast.showToast(
+                  msg: "Registration Successfully",
+                  backgroundColor: Colors.amberAccent,
+                  toastLength: Toast.LENGTH_SHORT,
+                );
+
+                Navigator.pushNamed(context, '/dashboardScreen');
+              } else if (state.status == UserStatus.sending) {
+                CenterLoader.show(context);
+              } else if (state.status == UserStatus.failure) {
+                CenterLoader.show(context);
+                Fluttertoast.showToast(
+                  msg: "Otp verification Failed",
+                  backgroundColor: Colors.red,
+                  toastLength: Toast.LENGTH_SHORT,
+                );
+              }
+            },
+            builder: (context, state) {
+              return Center(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal:
+                        isMobile
+                            ? 24
+                            : isTablet
+                            ? 40
+                            : 56,
+                    vertical: isMobile ? 16 : 24,
+                  ),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: isDesktop ? 420 : 500,
                     ),
-
-                    const SizedBox(height: 16),
-
-                    Text(
-                      LanguageHelper.t('otp_verify_message'),
-                      style: subtitleStyle,
-                      textAlign: TextAlign.center,
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: List.generate(
-                        6,
-                        (index) => _buildOtpBox(
-                          context,
-                          controller: _otpControllers[index],
-                          isMobile: isMobile,
-                          isLast: index == 5,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(phoneNumber),
+                        Text(
+                          LanguageHelper.t('verify_your_number'),
+                          style: titleStyle,
+                          textAlign: TextAlign.center,
                         ),
-                      ),
-                    ),
 
-                    const SizedBox(height: 24),
+                        const SizedBox(height: 16),
 
-                    RichText(
-                      textAlign: TextAlign.center,
-                      text: TextSpan(
-                        style: subtitleStyle,
-                        children: [
-                          TextSpan(
-                            text: LanguageHelper.t('resend_in_prefix') + ' ',
-                          ),
-                          TextSpan(
-                            text: '01:30',
-                            style: subtitleStyle?.copyWith(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.w600,
+                        Text(
+                          LanguageHelper.t('otp_verify_message'),
+                          style: subtitleStyle,
+                          textAlign: TextAlign.center,
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: List.generate(
+                            6,
+                            (index) => _buildOtpBox(
+                              context,
+                              controller: _otpControllers[index],
+                              isMobile: isMobile,
+                              isLast: index == 5,
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    TextButton(
-                      onPressed: () {},
-                      child: Text(
-                        LanguageHelper.t('didnt_receive_resend'),
-                        style: subtitleStyle?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w500,
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
 
-                    const SizedBox(height: 40),
-                  ],
+                        const SizedBox(height: 24),
+
+                        RichText(
+                          textAlign: TextAlign.center,
+                          text: TextSpan(
+                            style: subtitleStyle,
+                            children: [
+                              TextSpan(
+                                text:
+                                    LanguageHelper.t('resend_in_prefix') + ' ',
+                              ),
+                              TextSpan(
+                                text: '01:30',
+                                style: subtitleStyle?.copyWith(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        TextButton(
+                          onPressed: () {},
+                          child: Text(
+                            LanguageHelper.t('didnt_receive_resend'),
+                            style: subtitleStyle?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+
+                        const SizedBox(height: 40),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           );
         },
       ),

@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:kumbha_path/src/modules/ai_chat/ai_chat_screen.dart';
 import 'package:kumbha_path/src/modules/dashboard/dashboard.dart';
@@ -9,6 +8,7 @@ import 'package:kumbha_path/src/modules/launch_screen/launch_screen.dart';
 import 'package:kumbha_path/src/modules/live_crowd/live_crowd_map.dart';
 import 'package:kumbha_path/src/modules/live_updates/live_updates.dart';
 import 'package:kumbha_path/src/modules/login_screen/login_screen.dart';
+import 'package:kumbha_path/src/modules/login_screen/otp_verify_screen.dart';
 import 'package:kumbha_path/src/modules/setting/setting.dart';
 import 'package:kumbha_path/src/modules/temple_explorer/near_temples.dart';
 import 'package:kumbha_path/src/modules/temple_explorer/temple_detail_screen.dart';
@@ -18,6 +18,12 @@ class AppRouter {
     switch (routeSettings.name) {
       case '/loginScreen':
         return MaterialPageRoute(builder: (_) => const LoginScreen());
+
+      case '/verifyOtpScreen':
+        final phone = routeSettings.arguments as String?;
+        return MaterialPageRoute(
+          builder: (_) => OtpVerifyScreen(phoneNumber: phone ?? ''),
+        );
 
       case '/dashboardScreen':
         return MaterialPageRoute(builder: (_) => const Dashboard());
@@ -31,11 +37,8 @@ class AppRouter {
       case '/shahiEvents':
         return MaterialPageRoute(builder: (_) => const ShahiEvents());
 
-
       case '/liveCroud':
-        return MaterialPageRoute(builder: (_) => const LiveCrowdMap()); 
-
-        
+        return MaterialPageRoute(builder: (_) => const LiveCrowdMap());
 
       case '/journal':
         return MaterialPageRoute(builder: (_) => const JournerScreen());
@@ -46,8 +49,6 @@ class AppRouter {
       case '/notifications':
         return MaterialPageRoute(builder: (_) => const LiveUpdates());
 
-        
-
       case '/nearTemples':
         return MaterialPageRoute(builder: (_) => const NearTemples());
 
@@ -57,30 +58,23 @@ class AppRouter {
       case '/setting':
         return MaterialPageRoute(builder: (_) => const Setting());
 
-    
-      
-
       // case '/getStartScreen':
       //   return MaterialPageRoute(builder: (_) => const ChatGetStartScreen());
 
       // case '/chatScreen':
       //   return MaterialPageRoute(builder: (_) => const ChatScreen());
-      
+
       // case '/campaignHistory':
       //   return MaterialPageRoute(builder: (_) => const CampaignHistory());
 
-   
-
       // case '/changePassword':
       //   return MaterialPageRoute(builder: (_) => const Changepassword());
-      
+
       // case '/resetPassword':
       //   return MaterialPageRoute(builder: (_) => const ResetPassword());
 
       default:
-        return MaterialPageRoute(
-          builder: (_) => const LaunchScreen(),
-        );
+        return MaterialPageRoute(builder: (_) => const LaunchScreen());
     }
   }
 }

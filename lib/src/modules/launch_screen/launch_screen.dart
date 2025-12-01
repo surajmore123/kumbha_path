@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kumbha_path/src/modules/login_screen/login_screen.dart';
-
+import 'package:kumbha_path/src/network/controller/user_authentication.dart';
 
 class LaunchScreen extends StatefulWidget {
   const LaunchScreen({super.key});
@@ -10,17 +10,23 @@ class LaunchScreen extends StatefulWidget {
 }
 
 class _LaunchScreenState extends State<LaunchScreen> {
-
   @override
-  void initState(){
+  void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 3),(){
-      if(!mounted) return;
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=> LoginScreen()));
+    Future.delayed(const Duration(seconds: 3), () async {
+      final auth = UserAuthentication();
+      final isLogin = await auth.checkLogin();
+      if (!mounted) return;
+
+      if (isLogin) {
+        Navigator.pushReplacementNamed(context, '/dashboardScreen');
+      } else {
+        Navigator.pushReplacementNamed(context, '/loginScreen');
+      }
+      // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=> LoginScreen()));
     });
-  
-    
   }
+
   @override
   Widget build(BuildContext context) {
     // final isMobile = context.isMobile;
@@ -105,6 +111,3 @@ class _LaunchScreenState extends State<LaunchScreen> {
     );
   }
 }
-
-
-
