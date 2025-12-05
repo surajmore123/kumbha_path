@@ -1,8 +1,83 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kumbha_path/main_layout.dart';
+import 'package:kumbha_path/src/bloc/webhook_bloc/webhook_bloc.dart';
+import 'package:kumbha_path/src/bloc/webhook_bloc/webhook_event.dart';
+import 'package:kumbha_path/src/bloc/webhook_bloc/webhook_state.dart';
+import 'package:kumbha_path/src/constant/config.dart';
 
-class AskGuruAiScreen extends StatelessWidget {
+class AskGuruAiScreen extends StatefulWidget {
   const AskGuruAiScreen({super.key});
+
+  @override
+  State<AskGuruAiScreen> createState() => _AskGuruAiScreenState();
+}
+
+class _AskGuruAiScreenState extends State<AskGuruAiScreen> {
+  final ScrollController _scrollController = ScrollController();
+
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+    _loadInitialHistory();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadInitialHistory() async {
+    final sessionId = await storage.read(key: 'chat_session_id');
+
+    if (!mounted) return;
+
+    if (sessionId != null && sessionId.isNotEmpty) {
+      context.read<WebhookBloc>().add(
+        ChatBothistoryEvent(sessionId: sessionId, limit: 10, isLoadMore: false),
+      );
+    }
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+
+    if (_scrollController.position.pixels <=
+        _scrollController.position.minScrollExtent + 40) {
+      final bloc = context.read<WebhookBloc>();
+      final state = bloc.state;
+      final session = state.chatSessionModel;
+
+      if (session != null &&
+          session.hasMore == true &&
+          state.status != WebhookStatus.loading &&
+          (session.nextCursor ?? 0) > 0) {
+        bloc.add(
+          ChatBothistoryEvent(
+            sessionId: session.sessionId ?? '',
+            cursor: session.nextCursor,
+            limit: 10,
+            isLoadMore: true,
+          ),
+        );
+      }
+    }
+  }
+
+  void _scrollToBottom() {
+    if (!_scrollController.hasClients) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,128 +101,207 @@ class AskGuruAiScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Scaffold(
-        backgroundColor: const Color(0xFFFBDDB6),
-        body: SafeArea(
-          child: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFFFFF0CF),
-                  Color(0xFFFFE7B5),
-                  Color(0xFFFFF2D8),
-                ],
-              ),
-            ),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                    
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text(
-                              'Ask Guru AI',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFFB35C00),
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Seek. Learn. Reflect.',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFFCC8B40),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+      body: BlocConsumer<WebhookBloc, WebhookState>(
+        listener: (context, state) {
+          // auto-scroll when:
+          // - user sends message (sending)
+          // - AI replies (success)
+          if (state.status == WebhookStatus.sending ||
+              state.status == WebhookStatus.success) {
+            _scrollToBottom();
+          }
+        },
+        builder: (context, state) {
+          return Scaffold(
+            backgroundColor: const Color(0xFFFBDDB6),
+            body: SafeArea(
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFFFFF0CF),
+                      Color(0xFFFFE7B5),
+                      Color(0xFFFFF2D8),
                     ],
                   ),
                 ),
-
-                const SizedBox(height: 8),
-
-    
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    children: [
-                      const SizedBox(height: 8),
-
-       
-                      const _SenderLabel(name: 'Guru AI'),
-
-                      const SizedBox(height: 8),
-
-                      _ChatBubble(
-                        isGuru: true,
-                        avatarImage: 'assets/images/austrologer.jpg', 
-                        text:
-                            'Namaste! How may I guide you on your spiritual path today?',
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // User message
-                      const _SenderLabel(name: 'You', isGuru: false),
-                      const SizedBox(height: 8),
-                      _ChatBubble(
-                        isGuru: false,
-                        avatarImage: null,
-                        text: 'What is the significance of the Kumbh Mela?',
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Guru label
-                      const _SenderLabel(name: 'Guru AI'),
-
-                      const SizedBox(height: 8),
-
-                      // Guru long message
-                      _ChatBubble(
-                        isGuru: true,
-                        avatarImage: 'assets/images/austrologer.jpg', 
-                        text:
-                            'The Kumbh Mela is a sacred Hindu pilgrimage and festival, celebrated in a cycle of approximately 12 years. It represents a time for spiritual cleansing and renewal at four holy river-bank pilgrimage sites.',
-                        showCornerBadge: true,
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Typing indicator row
-                      _TypingIndicatorRow(
-                        avatars: const [
-                          'assets/images/austrologer.jpg',
-                          'assets/images/austrologer.jpg',
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                Text(
+                                  'Ask Guru AI',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFFB35C00),
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'Seek. Learn. Reflect.',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Color(0xFFCC8B40),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
+                    ),
 
-                      const SizedBox(height: 80),
-                    ],
-                  ),
-                ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        itemCount:
+                            state.messages.length +
+                            1, // +1 for initial guru greeting
+                        itemBuilder: (context, index) {
+                          // First item: static welcome message from Guru AI
+                          if (index == 0) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                _SenderLabel(name: 'Guru AI'),
+                                SizedBox(height: 8),
+                                _ChatBubble(
+                                  isGuru: true,
+                                  avatarImage: 'assets/images/austrologer.jpg',
+                                  text:
+                                      'Namaste! How may I guide you on your spiritual path today?',
+                                ),
+                                SizedBox(height: 16),
+                              ],
+                            );
+                          }
 
-                // BOTTOM INPUT BAR
-                Padding(
-                  padding: EdgeInsets.fromLTRB(16, 4, 16, isMobile ? 16 : 20),
-                  child: _ChatInputBar(),
+                          final msg = state.messages[index - 1];
+
+                          return Column(
+                            crossAxisAlignment:
+                                msg.isGuru
+                                    ? CrossAxisAlignment.start
+                                    : CrossAxisAlignment.end,
+                            children: [
+                              _SenderLabel(
+                                name: msg.isGuru ? 'Guru AI' : 'You',
+                                isGuru: msg.isGuru,
+                              ),
+                              const SizedBox(height: 4),
+                              _ChatBubble(
+                                isGuru: msg.isGuru,
+                                avatarImage:
+                                    msg.isGuru
+                                        ? 'assets/images/austrologer.jpg'
+                                        : null,
+                                text: msg.text,
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+
+                    // Typing indicator just above input
+                    if (state.status == WebhookStatus.sending)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        child: _TypingIndicatorRow(
+                          avatars: const ['assets/images/austrologer.jpg'],
+                        ),
+                      ),
+
+                    // Expanded(
+                    //   child: ListView.builder(
+                    //     padding: const EdgeInsets.symmetric(
+                    //       horizontal: 16,
+                    //       vertical: 8,
+                    //     ),
+                    //     itemCount:
+                    //         state.messages.length +
+                    //         1, // +1 for initial guru greeting
+                    //     itemBuilder: (context, index) {
+                    //       // First item: static welcome message from Guru AI
+                    //       if (index == 0) {
+                    //         return Column(
+                    //           crossAxisAlignment: CrossAxisAlignment.start,
+                    //           children: const [
+                    //             _SenderLabel(name: 'Guru AI'),
+                    //             SizedBox(height: 8),
+                    //             _ChatBubble(
+                    //               isGuru: true,
+                    //               avatarImage: 'assets/images/austrologer.jpg',
+                    //               text:
+                    //                   'Namaste! How may I guide you on your spiritual path today?',
+                    //             ),
+                    //             SizedBox(height: 16),
+                    //           ],
+                    //         );
+                    //       }
+
+                    //       // For other items, show real chat from BLoC
+                    //       final msg = state.messages[index - 1];
+
+                    //       return Column(
+                    //         crossAxisAlignment:
+                    //             msg.isGuru
+                    //                 ? CrossAxisAlignment.start
+                    //                 : CrossAxisAlignment.end,
+                    //         children: [
+                    //           _SenderLabel(
+                    //             name: msg.isGuru ? 'Guru AI' : 'You',
+                    //             isGuru: msg.isGuru,
+                    //           ),
+                    //           const SizedBox(height: 4),
+                    //           _ChatBubble(
+                    //             isGuru: msg.isGuru,
+                    //             avatarImage:
+                    //                 msg.isGuru
+                    //                     ? 'assets/images/austrologer.jpg'
+                    //                     : null,
+                    //             text: msg.text,
+                    //           ),
+                    //           const SizedBox(height: 12),
+                    //         ],
+                    //       );
+                    //     },
+                    //   ),
+                    // ),
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        4,
+                        16,
+                        isMobile ? 16 : 20,
+                      ),
+                      child: _ChatInputBar(),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -325,7 +479,28 @@ class _Dot extends StatelessWidget {
   }
 }
 
-class _ChatInputBar extends StatelessWidget {
+class _ChatInputBar extends StatefulWidget {
+  @override
+  State<_ChatInputBar> createState() => _ChatInputBarState();
+}
+
+class _ChatInputBarState extends State<_ChatInputBar> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _sendMessage() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+
+    context.read<WebhookBloc>().add(ChatBotEvent(message: text));
+    _controller.clear();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -343,26 +518,31 @@ class _ChatInputBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
         children: [
-          const Expanded(
+          Expanded(
             child: TextField(
-              decoration: InputDecoration(
+              controller: _controller,
+              decoration: const InputDecoration(
                 hintText: 'Ask a question or share your thoughts.',
                 hintStyle: TextStyle(color: Color(0xFFB0B5C0), fontSize: 14),
                 border: InputBorder.none,
               ),
               minLines: 1,
               maxLines: 3,
+              onSubmitted: (_) => _sendMessage(),
             ),
           ),
           const SizedBox(width: 8),
-          Container(
-            width: 34,
-            height: 34,
-            decoration: const BoxDecoration(
-              color: Color(0xFFFFC72C),
-              shape: BoxShape.circle,
+          GestureDetector(
+            onTap: _sendMessage,
+            child: Container(
+              width: 34,
+              height: 34,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFFC72C),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.send, size: 18, color: Color(0xFF6C4A00)),
             ),
-            child: const Icon(Icons.mic, size: 20, color: Color(0xFF6C4A00)),
           ),
         ],
       ),
