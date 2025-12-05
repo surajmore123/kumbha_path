@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:kumbha_path/app_router.dart';
 import 'package:kumbha_path/src/bloc/user_bloc/user_bloc.dart';
+import 'package:kumbha_path/src/bloc/webhook_bloc/webhook_bloc.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,7 +20,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
-      providers: [BlocProvider<UserBloc>(create: (context) => UserBloc())],
+      providers: [
+        BlocProvider<UserBloc>(create: (context) => UserBloc()),
+        BlocProvider<WebhookBloc>(create: (context) => WebhookBloc()),
+      ],
       child: MaterialApp(
         title: 'Flutter Demo',
         debugShowCheckedModeBanner: false,
