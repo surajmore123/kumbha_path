@@ -28,4 +28,46 @@ class UserApi extends Api {
       print('error');
     }
   }
+
+  Future<dynamic> userProfileCreate(jsonData) async {
+    try {
+      final usercreate = await requestPATCH(
+        path: '/api/auth/profile/',
+        parameters: jsonData,
+      );
+      print('response from user data $usercreate');
+      return usercreate;
+    } catch (e, _) {
+      print(e);
+      print('error');
+    }
+  }
+
+  Future<dynamic> userProfileImageUpload(jsonData) async {
+    try {
+      final profileImageUpload = await requestPatchImg(
+        path: '/api/auth/profile/image/',
+        parameters: jsonData,
+      );
+      print('response from profile image upload $profileImageUpload');
+      return profileImageUpload;
+    } catch (e, _) {
+      print(e);
+      print('error');
+    }
+  }
+
+  Future<dynamic> getUserProfile(jsonData) async {
+    try {
+      final userProfile = await requestGet(
+        path: '/api/auth/profile/',
+        parameters: jsonData,
+      );
+      print('response from get user profile $userProfile');
+      return userProfile;
+    } catch (e, _) {
+      print(e);
+      print('error');
+    }
+  }
 }

@@ -35,13 +35,13 @@ class Dashboard extends StatelessWidget {
           ),
         ),
         title: Text(
-          LanguageHelper.t('dashboard_title'), // e.g. "Sadhana Path"
+          LanguageHelper.t('dashboard_title'), 
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         actions: const [
           Padding(
             padding: EdgeInsets.only(right: 12),
-            child: LanguageIconButton(), // user can change language here
+            child: LanguageIconButton(),
           ),
         ],
       ),
@@ -81,7 +81,7 @@ class Dashboard extends StatelessWidget {
                 children: [
                   // 👋 Greeting
                   Text(
-                    LanguageHelper.t('dashboard_greeting'), // "Namaste, Suraj"
+                    LanguageHelper.t('dashboard_greeting'), 
                     style: titleStyle,
                     textAlign: TextAlign.center,
                   ),
@@ -104,12 +104,13 @@ class Dashboard extends StatelessWidget {
                           titleKey: 'ai_guru_title',
                           subtitleKey: 'ai_guru_subtitle',
                           onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => AskGuruAiScreen(),
-                              ),
-                            );
+                            Navigator.pushNamed(context, '/aichat');
+                            // Navigator.push(
+                            //   context,
+                            //   MaterialPageRoute(
+                            //     builder: (context) => AskGuruAiScreen(),
+                            //   ),
+                            // );
                           },
                         ),
                       ),

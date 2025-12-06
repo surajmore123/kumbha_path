@@ -69,7 +69,7 @@ FutureOr<void> _onChatWithAiGuru(
 
     // store/update session_id
     final String sessionId = data['session_id'].toString();
-    await storage.write(key: 'chat_session_id', value: sessionId);
+    await storage.write(key: 'session_id', value: sessionId);
 
     final messages = data['messages'] as List;
 
@@ -194,10 +194,11 @@ FutureOr<void> _onChatWithAiGuru(
     emit(state.copyWith(status: WebhookStatus.loading));
 
     final token = await storage.read(key: 'access_token');
+   
 
     final Map<String, String> jsonData = {
       "access_token": token.toString(),
-      "session_id": event.sessionId,
+      "session_id": event.sessionId.toString(),
       "limit": event.limit.toString(),
     };
 

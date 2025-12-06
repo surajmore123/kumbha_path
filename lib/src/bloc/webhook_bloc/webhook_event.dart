@@ -13,16 +13,18 @@ class ChatBotEvent extends WebhookEvent {
 }
 
 class ChatBothistoryEvent extends WebhookEvent {
-  final String sessionId;
+  final String? sessionId;
   final int? cursor;       // for pagination
   final int limit;         // default 10
   final bool isLoadMore; 
+  final WebhookStatus? status;
 
   ChatBothistoryEvent({
-    required this.sessionId,
+     this.sessionId,
     this.cursor,
     this.limit = 10,
     this.isLoadMore = false,
+    this.status
   });
 
   @override

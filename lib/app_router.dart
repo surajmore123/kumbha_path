@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kumbha_path/src/bloc/webhook_bloc/webhook_bloc.dart';
+import 'package:kumbha_path/src/bloc/webhook_bloc/webhook_event.dart';
+import 'package:kumbha_path/src/bloc/webhook_bloc/webhook_state.dart';
 import 'package:kumbha_path/src/modules/ai_chat/ai_chat_screen.dart';
 import 'package:kumbha_path/src/modules/dashboard/dashboard.dart';
 import 'package:kumbha_path/src/modules/event/events.dart';
@@ -29,7 +33,18 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const Dashboard());
 
       case '/aichat':
-        return MaterialPageRoute(builder: (_) => const AskGuruAiScreen());
+        return MaterialPageRoute(
+          builder:
+              (_) => BlocProvider(
+                create:
+                    (context) =>
+                        WebhookBloc()..add(
+                          ChatBothistoryEvent(status: WebhookStatus.initial),
+                        ),
+                child: AskGuruAiScreen(),
+              ),
+          //  => const AskGuruAiScreen()
+        );
 
       case '/launchScreen':
         return MaterialPageRoute(builder: (_) => const LaunchScreen());

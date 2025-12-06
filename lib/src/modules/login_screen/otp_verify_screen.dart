@@ -112,7 +112,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
               } else if (state.status == UserStatus.sending) {
                 CenterLoader.show(context);
               } else if (state.status == UserStatus.failure) {
-                CenterLoader.show(context);
+               CenterLoader.hide();
                 Fluttertoast.showToast(
                   msg: "Otp verification Failed",
                   backgroundColor: Colors.red,
