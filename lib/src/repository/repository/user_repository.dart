@@ -8,7 +8,20 @@ class UserRepository extends Repository {
     return userApi.createUser(jsonData);
   }
 
-  Future<dynamic> verifyUserOtp(jsonData)async{
+  Future<dynamic> verifyUserOtp(jsonData) async {
     return userApi.verifyUserOtp(jsonData);
+  }
+
+  //getUserProfile
+  Future<dynamic> userProfileCreate(jsonData) async {
+    return userApi.userProfileCreate(jsonData);
+  }
+
+  Future<dynamic> userProfileImageUpload(jsonData) async {
+    return userApi.userProfileImageUpload(jsonData);
+  }
+
+   Future<dynamic> getUserProfile(jsonData) async {
+    return userApi.getUserProfile(jsonData);
   }
 }

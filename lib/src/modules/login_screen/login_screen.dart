@@ -36,6 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         actions: const [
           Padding(
             padding: EdgeInsets.only(right: 12),
@@ -77,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
               } else if (state.status == UserStatus.sending) {
                 CenterLoader.show(context);
               } else if (state.status == UserStatus.failure) {
-                CenterLoader.show(context);
+                CenterLoader.hide();
                 Fluttertoast.showToast(
                   msg: "Otp send Failed",
                   backgroundColor: Colors.red,

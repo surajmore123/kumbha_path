@@ -18,5 +18,24 @@ class VerifyOtpEvent extends UserEvent {
   final String phoneNumber;
   final String otp;
 
-  VerifyOtpEvent({this.status, required this.otp,required this.phoneNumber});
+  VerifyOtpEvent({this.status, required this.otp, required this.phoneNumber});
+}
+
+class UserProfileCreateEvent extends UserEvent {
+  final String email;
+  final String fullName;
+
+  UserProfileCreateEvent({required this.email, required this.fullName});
+}
+
+class ImageAddEvent extends UserEvent {
+  final String image;
+
+  ImageAddEvent({required this.image});
+}
+
+class ProfileGetEvent extends UserEvent {
+  final UserStatus status;
+
+  ProfileGetEvent({required this.status});
 }
