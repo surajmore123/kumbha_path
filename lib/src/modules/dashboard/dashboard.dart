@@ -15,10 +15,12 @@ class Dashboard extends StatelessWidget {
     final isDesktop = context.isDesktop;
 
     return MainLayout(
+      backgroundColor: const Color(0xFFFFF6DD),
       showDefaultBottom: true,
       ctx: 0,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        // backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFFFF6DD),
         centerTitle: true,
         leadingWidth: 35,
         leading: Padding(
@@ -65,6 +67,7 @@ class Dashboard extends StatelessWidget {
               ?.copyWith(fontSize: isMobile ? 14 : 16, color: Colors.grey[700]);
 
           return SingleChildScrollView(
+            
             padding: EdgeInsets.symmetric(
               horizontal:
                   isMobile
@@ -75,7 +78,8 @@ class Dashboard extends StatelessWidget {
               vertical: isMobile ? 16 : 24,
             ),
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: isDesktop ? 520 : 480),
+              
+              constraints: BoxConstraints(maxWidth: isDesktop ? 520 : 480,),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [

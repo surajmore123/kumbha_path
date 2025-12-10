@@ -43,7 +43,9 @@ class _Setting extends State<Setting> {
 
   void initState() {
     super.initState();
-    context.read<UserBloc>().add(ProfileGetEvent(status: UserStatus.profileLoaded));
+    context.read<UserBloc>().add(
+      ProfileGetEvent(status: UserStatus.profileLoaded),
+    );
   }
 
   assignValues(UserState state) {
@@ -713,7 +715,6 @@ class _SettingsToggleRow extends StatelessWidget {
     );
   }
 }
-
 
 class _ThemeOptionCard extends StatelessWidget {
   final IconData icon;

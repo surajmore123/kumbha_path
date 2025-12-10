@@ -9,6 +9,7 @@ class MainLayout extends StatefulWidget {
   final bool? showFloatingActionButton;
   final String? title;
   final PreferredSizeWidget? appBar; // 👈 NEW
+   final Color? backgroundColor;
 
   int ctx;
   MainLayout({
@@ -21,6 +22,7 @@ class MainLayout extends StatefulWidget {
     this.showFloatingActionButton = false,
     this.title,
     this.appBar, // 👈 NEW
+    this.backgroundColor,
   });
 
   @override
@@ -35,7 +37,8 @@ class _MainLayoutState extends State<MainLayout> {
     double paddingFactor = screenWidth < 600 ? 0.05 : 0.03;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: widget.backgroundColor ?? Colors.white,
+
       resizeToAvoidBottomInset: true,
 
       appBar: widget.appBar, // 👈 USE IT HERE
@@ -72,67 +75,85 @@ class _MainLayoutState extends State<MainLayout> {
               ),
             ),
       bottomNavigationBar: (widget.showDefaultBottom != true)
-          ? null
-          : ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-              child: BottomNavigationBar(
-                backgroundColor: whiteColor,
-                type: BottomNavigationBarType.fixed,
-                selectedFontSize: screenWidth * 0.03,
-                unselectedFontSize: screenWidth * 0.03,
-                currentIndex: widget.ctx,
-                onTap: (int value) async {
-                  switch (value) {
-                    case 0:
-                      if (widget.ctx != 0) {
-                        Navigator.pushNamed(context, '/dashboardScreen');
-                      }
-                      break;
-                    case 1:
-                      if (widget.ctx != 1) {
-                        Navigator.pushNamed(context, '/aichat');
-                      }
-                      break;
-                    case 2:
-                      if (widget.ctx != 2) {
-                        Navigator.pushNamed(context, '/shahiEvents');
-                      }
-                      break;
-                    case 3:
-                      if (widget.ctx != 3) {
-                        Navigator.pushNamed(context, '/journal');
-                      }
-                      break;
-                  }
-                },
-                items: <BottomNavigationBarItem>[
-                  BottomNavigationBarItem(
-                    icon: Image.asset('assets/icons/home.png', height: 24, width: 24),
-                    activeIcon: Image.asset('assets/icons/home.png', height: 24, width: 24),
-                    label: 'Home',
-                  ),
-                    BottomNavigationBarItem(
-                    icon: Image.asset('assets/icons/community.png', height: 24, width: 24),
-                    activeIcon: Image.asset('assets/icons/community.png', height: 24, width: 24),
-                    label: 'AI Chat',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Image.asset('assets/icons/event.png', height: 24, width: 24),
-                    activeIcon: Image.asset('assets/icons/event.png', height: 24, width: 24),
-                    label: 'Events',
-                  ),
-                
-                  BottomNavigationBarItem(
-                    icon: Image.asset('assets/icons/note.png', height: 24, width: 24),
-                    activeIcon: Image.asset('assets/icons/note.png', height: 24, width: 24),
-                    label: 'Journal',
-                  ),
-                ],
-              ),
+    ? null
+    : ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+        child: BottomNavigationBar(
+          backgroundColor: whiteColor,
+          type: BottomNavigationBarType.fixed,
+
+          // Text sizes
+          selectedFontSize: screenWidth * 0.03,
+          unselectedFontSize: screenWidth * 0.03,
+
+          // Label colors
+          selectedItemColor: Colors.orange,      // your active color
+          unselectedItemColor: Colors.grey,      // your inactive color
+
+          // (Optional) label styles if you want them slightly bolder for active
+          selectedLabelStyle: TextStyle(
+            fontSize: screenWidth * 0.03,
+            fontWeight: FontWeight.w600,
+          ),
+          unselectedLabelStyle: TextStyle(
+            fontSize: screenWidth * 0.03,
+            fontWeight: FontWeight.w400,
+          ),
+
+          currentIndex: widget.ctx,
+          onTap: (int value) async {
+            switch (value) {
+              case 0:
+                if (widget.ctx != 0) {
+                  Navigator.pushNamed(context, '/dashboardScreen');
+                }
+                break;
+              case 1:
+                if (widget.ctx != 1) {
+                  Navigator.pushNamed(context, '/aichat');
+                }
+                break;
+              case 2:
+                if (widget.ctx != 2) {
+                  Navigator.pushNamed(context, '/shahiEvents');
+                }
+                break;
+              case 3:
+                if (widget.ctx != 3) {
+                  Navigator.pushNamed(context, '/journal');
+                }
+                break;
+            }
+          },
+          items: <BottomNavigationBarItem>[
+            BottomNavigationBarItem(
+              icon: Image.asset('assets/icons/home.png', height: 24, width: 24),
+              activeIcon: Image.asset('assets/icons/home_orange.png', height: 24, width: 24),
+              label: 'Home',
             ),
+            BottomNavigationBarItem(
+              icon: Image.asset('assets/icons/chatbot.png', height: 24, width: 24),
+          
+              activeIcon: Image.asset('assets/icons/chatbot_orange.png', height: 24, width: 24),
+              label: 'AI Chat',
+            ),
+            BottomNavigationBarItem(
+              icon: Image.asset('assets/icons/event.png', height: 24, width: 24),
+              activeIcon: Image.asset('assets/icons/event_orange.png', height: 24, width: 24),
+              label: 'Events',
+            ),
+            BottomNavigationBarItem(
+              icon: Image.asset('assets/icons/note.png', height: 35, width: 35),
+              activeIcon: Image.asset('assets/icons/note_orange.png', height: 24, width: 24),
+              label: 'Journal',
+            ),
+          ],
+        ),
+      ),
+
     );
   }
 }

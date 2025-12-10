@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:equatable/equatable.dart';
 import 'package:kumbha_path/src/bloc/webhook_bloc/webhook_state.dart';
 
@@ -7,10 +9,23 @@ class WebhookEvent extends Equatable {
 }
 
 class ChatBotEvent extends WebhookEvent {
-  final String message;
+  final ChatPayloadType type;
+  final String? message; // for text
+  final File? file;      // for image/audio
 
-  ChatBotEvent({required this.message});
+  ChatBotEvent.text({required this.message})
+      : type = ChatPayloadType.text,
+        file = null;
+
+  ChatBotEvent.image({required this.file})
+      : type = ChatPayloadType.image,
+        message = null;
+
+  ChatBotEvent.audio({required this.file})
+      : type = ChatPayloadType.audio,
+        message = null;
 }
+
 
 class ChatBothistoryEvent extends WebhookEvent {
   final String? sessionId;

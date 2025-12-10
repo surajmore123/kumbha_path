@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-
+import 'package:http_parser/http_parser.dart'; 
 import 'package:http/http.dart' as http;
 import 'package:kumbha_path/src/constant/api_constatnt.dart';
 
@@ -37,6 +37,60 @@ class Api {
       return {};
     }
   }
+
+Future<dynamic> requestPostMultipart({
+  required String path,
+  required File file,
+  required Map<String, String> fields,
+  required String contentType,      // <-- explicit content type
+  String? accessToken,
+}) async {
+  // copy headers but remove JSON content-type
+  final headers = Map<String, String>.from(_headers);
+  headers.remove('Content-Type');
+
+  if (accessToken != null && accessToken.isNotEmpty) {
+    headers['Authorization'] = 'Bearer $accessToken';
+  }
+
+  Uri uri;
+  if (_protocol == "https") {
+    uri = Uri.https(_host, path);
+  } else {
+    uri = Uri.http(_host, path);
+  }
+  print('url (multipart) %%%%%%%%%$uri');
+
+  final request = http.MultipartRequest('POST', uri);
+  request.headers.addAll(headers);
+
+  // add text fields
+  request.fields.addAll(fields);
+
+  // also send content_type as a field (exactly as backend expects)
+  request.fields['content_type'] = contentType;
+
+  // attach file with correct MIME type (not application/octet-stream)
+  request.files.add(
+    await http.MultipartFile.fromPath(
+      'file',                          // change if backend expects another key
+      file.path,
+      contentType: MediaType.parse(contentType),
+    ),
+  );
+
+  final streamedResponse = await request.send();
+  final response = await http.Response.fromStream(streamedResponse);
+
+  if (response.body.isNotEmpty) {
+    final jsonObject = json.decode(response.body);
+    print('multipart response: $jsonObject');
+    return jsonObject;
+  } else {
+    return {};
+  }
+}
+
 
   Future<dynamic> requestPost({
     required String? path,
