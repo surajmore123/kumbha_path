@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kumbha_path/main_layout.dart';
@@ -189,15 +191,37 @@ class _AskGuruAiScreenState extends State<AskGuruAiScreen> {
                                 ChatBubble(
                                   isGuru: true,
                                   avatarImage: 'assets/images/austrologer.jpg',
-                                  text:
-                                      'Namaste! How may I guide you today?',
-                                ),//on your spiritual path
+                                  text: 'Namaste! How may I guide you today?',
+                                ), //on your spiritual path
                                 SizedBox(height: 16),
                               ],
                             );
                           }
 
                           final msg = state.messages[index - 1];
+
+                          Widget content;
+                          if (msg.type == ChatPayloadType.text) {
+                            // normal text bubble
+                            content = ChatBubble(
+                              isGuru: msg.isGuru,
+                              avatarImage:
+                                  msg.isGuru
+                                      ? 'assets/images/austrologer.jpg'
+                                      : null,
+                              text: msg.text ?? '',
+                            );
+                          } else if (msg.type == ChatPayloadType.image) {
+                            content = _ImageBubble(
+                              isGuru: msg.isGuru,
+                              imagePath: msg.mediaPath!,
+                            );
+                          } else {
+                            content = _AudioBubble(
+                              isGuru: msg.isGuru,
+                              audioPath: msg.mediaPath!,
+                            );
+                          }
 
                           return Column(
                             crossAxisAlignment:
@@ -210,14 +234,7 @@ class _AskGuruAiScreenState extends State<AskGuruAiScreen> {
                                 isGuru: msg.isGuru,
                               ),
                               const SizedBox(height: 4),
-                              ChatBubble(
-                                isGuru: msg.isGuru,
-                                avatarImage:
-                                    msg.isGuru
-                                        ? 'assets/images/austrologer.jpg'
-                                        : null,
-                                text: msg.text,
-                              ),
+                              content,
                               const SizedBox(height: 12),
                             ],
                           );
@@ -244,7 +261,9 @@ class _AskGuruAiScreenState extends State<AskGuruAiScreen> {
                         16,
                         isMobile ? 16 : 20,
                       ),
-                      child: ChatInputBar(),
+                      child: ChatInputBar(
+                        onMessageSent: _scrollToBottom,
+                      ),
                     ),
                   ],
                 ),
@@ -257,136 +276,87 @@ class _AskGuruAiScreenState extends State<AskGuruAiScreen> {
   }
 }
 
-// class _TypingIndicatorRow extends StatelessWidget {
-//   final List<String> avatars;
+class _ImageBubble extends StatelessWidget {
+  final bool isGuru;
+  final String imagePath;
 
-//   const _TypingIndicatorRow({required this.avatars});
+  const _ImageBubble({Key? key, required this.isGuru, required this.imagePath})
+    : super(key: key);
 
-//   @override
-//   Widget build(BuildContext context) {
-//     return Row(
-//       children: [
-//         // stacked avatars vertically
-//         Column(
-//           children:
-//               avatars
-//                   .map(
-//                     (path) => Padding(
-//                       padding: const EdgeInsets.only(bottom: 8.0),
-//                       child: CircleAvatar(
-//                         radius: 16,
-//                         backgroundImage: AssetImage(path),
-//                       ),
-//                     ),
-//                   )
-//                   .toList(),
-//         ),
-//         const SizedBox(width: 8),
-//         Container(
-//           decoration: BoxDecoration(
-//             color: const Color(0xFFFFF7E8),
-//             borderRadius: BorderRadius.circular(20),
-//           ),
-//           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-//           child: Row(
-//             mainAxisSize: MainAxisSize.min,
-//             children: const [
-//               _Dot(),
-//               SizedBox(width: 4),
-//               _Dot(),
-//               SizedBox(width: 4),
-//               _Dot(),
-//             ],
-//           ),
-//         ),
-//       ],
-//     );
-//   }
-// }
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.only(
+      topLeft: const Radius.circular(18),
+      topRight: const Radius.circular(18),
+      bottomLeft: Radius.circular(isGuru ? 4 : 18),
+      bottomRight: Radius.circular(isGuru ? 18 : 4),
+    );
 
-// class _Dot extends StatelessWidget {
-//   const _Dot();
+    // 👇 Decide whether it's a local file or a URL
+    final bool isNetwork = imagePath.startsWith('http');
 
-//   @override
-//   Widget build(BuildContext context) {
-//     return Container(
-//       width: 6,
-//       height: 6,
-//       decoration: BoxDecoration(
-//         color: const Color(0xFFE0B76F),
-//         borderRadius: BorderRadius.circular(3),
-//       ),
-//     );
-//   }
-// }
+    final Widget imageWidget =
+        isNetwork
+            ? Image.network(imagePath, width: 220, fit: BoxFit.cover)
+            : Image.file(File(imagePath), width: 220, fit: BoxFit.cover);
 
-// class _ChatInputBar extends StatefulWidget {
-//   @override
-//   State<_ChatInputBar> createState() => _ChatInputBarState();
-// }
+    return Align(
+      alignment: isGuru ? Alignment.centerLeft : Alignment.centerRight,
+      child: Container(
+        decoration: BoxDecoration(
+          // color: isGuru ? const Color(0xFFFFF2D8) : const Color(0xFFFFC72C),
+          borderRadius: radius,
+        ),
+        padding: const EdgeInsets.all(6),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: imageWidget,
+        ),
+      ),
+    );
+  }
+}
 
-// class _ChatInputBarState extends State<_ChatInputBar> {
-//   final TextEditingController _controller = TextEditingController();
+class _AudioBubble extends StatelessWidget {
+  final bool isGuru;
+  final String audioPath;
 
-//   @override
-//   void dispose() {
-//     _controller.dispose();
-//     super.dispose();
-//   }
+  const _AudioBubble({Key? key, required this.isGuru, required this.audioPath})
+    : super(key: key);
 
-//   void _sendMessage() {
-//     final text = _controller.text.trim();
-//     if (text.isEmpty) return;
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.only(
+      topLeft: const Radius.circular(18),
+      topRight: const Radius.circular(18),
+      bottomLeft: Radius.circular(isGuru ? 4 : 18),
+      bottomRight: Radius.circular(isGuru ? 18 : 4),
+    );
 
-//     context.read<WebhookBloc>().add(ChatBotEvent(message: text));
-//     _controller.clear();
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Container(
-//       decoration: BoxDecoration(
-//         color: const Color(0xFFFFFFFF),
-//         borderRadius: BorderRadius.circular(28),
-//         boxShadow: [
-//           BoxShadow(
-//             color: Colors.black.withOpacity(0.05),
-//             blurRadius: 6,
-//             offset: const Offset(0, 2),
-//           ),
-//         ],
-//       ),
-//       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-//       child: Row(
-//         children: [
-//           Expanded(
-//             child: TextField(
-//               controller: _controller,
-//               decoration: const InputDecoration(
-//                 hintText: 'Ask a question or share your thoughts.',
-//                 hintStyle: TextStyle(color: Color(0xFFB0B5C0), fontSize: 14),
-//                 border: InputBorder.none,
-//               ),
-//               minLines: 1,
-//               maxLines: 3,
-//               onSubmitted: (_) => _sendMessage(),
-//             ),
-//           ),
-//           const SizedBox(width: 8),
-//           GestureDetector(
-//             onTap: _sendMessage,
-//             child: Container(
-//               width: 34,
-//               height: 34,
-//               decoration: const BoxDecoration(
-//                 color: Color(0xFFFFC72C),
-//                 shape: BoxShape.circle,
-//               ),
-//               child: const Icon(Icons.send, size: 18, color: Color(0xFF6C4A00)),
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-// }
+    return Align(
+      alignment: isGuru ? Alignment.centerLeft : Alignment.centerRight,
+      child: Container(
+        decoration: BoxDecoration(
+          color: isGuru ? const Color(0xFFFFF2D8) : const Color(0xFFFFC72C),
+          borderRadius: radius,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.mic, size: 20, color: Color(0xFF6C4A00)),
+            SizedBox(width: 8),
+            Text(
+              'Audio message',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF6C4A00),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

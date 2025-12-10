@@ -15,10 +15,11 @@ class ShahiEvents extends StatelessWidget {
     final isDesktop = context.isDesktop;
 
     return MainLayout(
+      backgroundColor: const Color(0xFFFFF6DD),
       showDefaultBottom: true,
       ctx: 2, // Events tab in your bottom bar
       appBar: AppBar(
-        backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFFFF6DD),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
