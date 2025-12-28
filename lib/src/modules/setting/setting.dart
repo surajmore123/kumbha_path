@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:kumbha_path/main_layout.dart';
-import 'package:flutter/material.dart';
 import 'package:kumbha_path/src/bloc/user_bloc/user_bloc.dart';
 import 'package:kumbha_path/src/bloc/user_bloc/user_event.dart';
 import 'package:kumbha_path/src/bloc/user_bloc/user_state.dart';
@@ -11,10 +10,12 @@ import 'package:kumbha_path/src/components/image_upload/profile_pic.dart';
 import 'package:kumbha_path/src/components/loader/center_loader.dart';
 import 'package:kumbha_path/src/constant/api_constatnt.dart';
 import 'package:kumbha_path/src/constant/app_color.dart';
+
 import 'package:kumbha_path/src/constant/app_responsive.dart';
 import 'package:kumbha_path/src/constant/config.dart';
 import 'package:kumbha_path/src/constant/language_helper.dart';
-import 'package:kumbha_path/src/models/user_profile.dart';
+import 'package:kumbha_path/src/constant/theme_provider.dart';
+import 'package:provider/provider.dart';
 
 class Setting extends StatefulWidget {
   const Setting({super.key});
@@ -23,7 +24,7 @@ class Setting extends StatefulWidget {
   State<Setting> createState() => _Setting();
 }
 
-enum AppThemeOption { light, dark, system }
+// enum AppThemeOption { light, dark, system }
 
 class _Setting extends State<Setting> {
   bool isSelected = false;
@@ -65,27 +66,36 @@ class _Setting extends State<Setting> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     final isMobile = context.isMobile;
     final isTablet = context.isTablet;
     final isDesktop = context.isDesktop;
+    final cs = Theme.of(context).colorScheme;
+    final brightness = Theme.of(context).brightness;
+
+    // Use the shared gradient builder so light shows orange, dark uses cs.primary -> cs.primaryContainer
+    final gradient = buildThemeGradient(context, isPrimary: true);
 
     return MainLayout(
       showDefaultBottom: false,
       ctx: 0,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFF7E9),
+        backgroundColor: theme.appBarTheme.backgroundColor ?? cs.surface,
         elevation: 0,
+
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: Icon(Icons.arrow_back, color: cs.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
         title: Text(
           LanguageHelper.t('settings_title'),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF111827),
+            color: cs.onBackground,
           ),
         ),
       ),
@@ -95,12 +105,12 @@ class _Setting extends State<Setting> {
           final labelStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
             fontSize: isMobile ? 14 : 15,
             fontWeight: FontWeight.w600,
-            color: const Color(0xFF111827),
+            color: cs.onBackground,
           );
 
           final hintStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
             fontSize: isMobile ? 13.5 : 14,
-            color: const Color(0xFF9CA3AF),
+            color: cs.onBackground.withOpacity(0.55),
           );
 
           return BlocConsumer<UserBloc, UserState>(
@@ -112,7 +122,7 @@ class _Setting extends State<Setting> {
                 CenterLoader.hide();
                 Fluttertoast.showToast(
                   msg: "Profile Updated Successfully",
-                  backgroundColor: Colors.amberAccent,
+                  backgroundColor: cs.primaryContainer,
                   toastLength: Toast.LENGTH_SHORT,
                 );
 
@@ -125,9 +135,9 @@ class _Setting extends State<Setting> {
                   SnackBar(
                     content: Text(
                       'Profile Update failed',
-                      style: TextStyle(color: Colors.red),
+                      style: TextStyle(color: cs.onError),
                     ),
-                    backgroundColor: redColor,
+                    backgroundColor: cs.error,
                     duration: const Duration(seconds: 2),
                   ),
                 );
@@ -135,7 +145,8 @@ class _Setting extends State<Setting> {
             },
             builder: (context, state) {
               return Container(
-                color: const Color(0xFFFFF7E9),
+                color: theme.scaffoldBackgroundColor,
+                // color: const Color(0xFFFFF7E9),
                 child: SingleChildScrollView(
                   padding: EdgeInsets.symmetric(
                     horizontal:
@@ -153,263 +164,276 @@ class _Setting extends State<Setting> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                LanguageHelper.t('settings_my_profile'),
-                                style: Theme.of(
-                                  context,
-                                ).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: isMobile ? 16 : 18,
-                                  color: const Color(0xFF111827),
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              LanguageHelper.t('settings_my_profile'),
+                              style: Theme.of(
+                                context,
+                              ).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                fontSize: isMobile ? 16 : 18,
+                                color: cs.onBackground,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                        
+                            // ========== PROFILE ROW ==========
+                            Row(
+                              children: [
+                                ProfilePic(
+                                  takeImage: takeImage,
+                                  imageFile: profileImage,
+                                  existedImageUrl:
+                                      '${ApiConst.baseUrl}/$profileUrl',
                                 ),
-                              ),
-                              const SizedBox(height: 16),
-
-                              // ========== PROFILE ROW ==========
-                              Row(
-                                children: [
-                                  ProfilePic(
-                                    takeImage: takeImage,
-                                    imageFile: profileImage,
-                                    existedImageUrl:
-                                        '${ApiConst.baseUrl}/$profileUrl',
-                                  ),
-
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          _nameController.text,
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w700,
-                                            color: Color(0xFF111827),
-                                          ),
+                        
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _nameController.text,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: cs.onBackground,
                                         ),
-                                        const SizedBox(height: 4),
-                                        GestureDetector(
-                                          onTap: () {
-                                            // TODO: change profile picture
-                                          },
-                                          child: Text(
-                                            LanguageHelper.t(
-                                              'settings_edit_profile_picture',
-                                            ),
-                                            style: const TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w600,
-                                              color: Color(0xFFF59E0B),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: 10),
-
-                              GestureDetector(
-                                onTap:
-                                    () => setState(
-                                      () => isSelected = !isSelected,
-                                    ),
-                                child: Opacity(
-                                  opacity: isSelected ? 0.6 : 1.0,
-                                  child: Container(
-                                    width: isMobile ? 80 : 100,
-                                    height: isMobile ? 40 : 46,
-
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFFFFA726),
-                                          Color(0xFFFFC107),
-                                        ],
                                       ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.orange.withOpacity(0.3),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 3),
+                                      const SizedBox(height: 4),
+                                      GestureDetector(
+                                        onTap: () {
+                                          // TODO: change profile picture
+                                        },
+                                        child: Text(
+                                          LanguageHelper.t(
+                                            'settings_edit_profile_picture',
+                                          ),
+                                          style: labelStyle,
+                                          // style: TextStyle(
+                                          //   fontSize: 13,
+                                          //   fontWeight: FontWeight.w600,
+                                          //   color: cs.primary,
+                                          // ),
                                         ),
-                                      ],
-                                      borderRadius: BorderRadius.circular(28),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        'Edit',
-                                        style: TextStyle(color: Colors.white),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(height: 20),
-
-                              // ========== FULL NAME FIELD ==========
-                              Text(
-                                LanguageHelper.t('settings_full_name'),
-                                style: labelStyle,
-                              ),
-                              const SizedBox(height: 6),
-                              TextField(
-                                controller: _nameController,
-                                decoration: InputDecoration(
-                                  hintText: LanguageHelper.t(
-                                    'settings_full_name_hint',
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.white,
-
-                                  labelStyle: TextStyle(
-                                    color:
-                                        isSelected
-                                            ? textColor
-                                            : lightblackColor,
-                                  ),
-                                  hintStyle: hintStyle,
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(24),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 12,
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(height: 14),
-
-                              // ========== EMAIL FIELD ==========
-                              Text(
-                                LanguageHelper.t('settings_email'),
-                                style: labelStyle,
-                              ),
-                              const SizedBox(height: 6),
-                              TextField(
-                                controller: _emailController,
-                                keyboardType: TextInputType.emailAddress,
-                                decoration: InputDecoration(
-                                  hintText: LanguageHelper.t(
-                                    'settings_email_hint',
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.white,
-
-                                  labelStyle: TextStyle(
-                                    color:
-                                        isSelected
-                                            ? textColor
-                                            : lightblackColor,
-                                  ),
-                                  hintStyle: hintStyle,
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(24),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 12,
-                                  ),
-                                ),
-                                // decoration: InputDecoration(
-                                //   hintText: LanguageHelper.t('settings_email_hint'),
-                                //   hintStyle: hintStyle,
-                                //   filled: true,
-                                //   fillColor: Colors.white,
-                                //   contentPadding: const EdgeInsets.symmetric(
-                                //     horizontal: 16,
-                                //     vertical: 12,
-                                //   ),
-                                //   border: OutlineInputBorder(
-                                //     borderRadius: BorderRadius.circular(24),
-                                //     borderSide: BorderSide.none,
-                                //   ),
-                                // ),
-                              ),
-
-                              const SizedBox(height: 18),
-
-                              // ========== SAVE CHANGES BUTTON ==========
-                              GestureDetector(
-                                onTap:
-                                    isSelected
-                                        ? () {
-                                          BlocProvider.of<UserBloc>(
-                                            context,
-                                          ).add(
-                                            UserProfileCreateEvent(
-                                              email:
-                                                  _emailController.text.trim(),
-                                              fullName:
-                                                  _nameController.text.trim(),
-                                            ),
-                                          );
-                                        }
-                                        : null,
-                                // () {
-
-                                // },
-                                child: Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(28),
-                                    gradient: const LinearGradient(
-                                      colors: [
-                                        Color(0xFFFFA726),
-                                        Color(0xFFFFC107),
-                                      ],
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.orange.withOpacity(0.3),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 3),
                                       ),
                                     ],
                                   ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 10),
+                        
+                            GestureDetector(
+                              onTap:
+                                  () => setState(
+                                    () => isSelected = !isSelected,
+                                  ),
+                              child: Opacity(
+                                opacity: isSelected ? 0.6 : 1.0,
+                                child: Container(
+                                  width: isMobile ? 80 : 100,
+                                  height: isMobile ? 40 : 46,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(32),
+                                    gradient: buildThemeGradient(
+                                      context,
+                                      isPrimary: true,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color:
+                                            brightness == Brightness.dark
+                                                ? cs.primary.withOpacity(0.18)
+                                                : cs.primary.withOpacity(
+                                                  0.18,
+                                                ),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 6),
+                                      ),
+                                    ],
+                                  ),
+                        
+                                  // decoration: BoxDecoration(
+                                  //   gradient: LinearGradient(
+                                  //     colors: [
+                                  //       cs.primary,
+                                  //       cs.primaryContainer,
+                                  //     ],
+                                  //   ),
+                                  //   boxShadow: [
+                                  //     BoxShadow(
+                                  //       color: cs.primary.withOpacity(0.22),
+                                  //       blurRadius: 8,
+                                  //       offset: const Offset(0, 3),
+                                  //     ),
+                                  //   ],
+                                  //   borderRadius: BorderRadius.circular(28),
+                                  // ),
                                   child: Center(
                                     child: Text(
-                                      LanguageHelper.t('settings_save_changes'),
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
-                                      ),
+                                      'Edit',
+                                      style: TextStyle(color: cs.onPrimary),
                                     ),
                                   ),
                                 ),
                               ),
-
-                              const SizedBox(height: 20),
-                            ],
-                          ),
+                            ),
+                        
+                            const SizedBox(height: 20),
+                        
+                            // ========== FULL NAME FIELD ==========
+                            Text(
+                              LanguageHelper.t('settings_full_name'),
+                              style: labelStyle,
+                            ),
+                            const SizedBox(height: 6),
+                            TextField(
+                              controller: _nameController,
+                              decoration: InputDecoration(
+                                hintText: LanguageHelper.t(
+                                  'settings_full_name_hint',
+                                ),
+                                filled: true,
+                                fillColor: theme.cardColor,
+                        
+                                // labelStyle: TextStyle(
+                                //   color:
+                                //       isSelected
+                                //           ? textColor
+                                //           : lightblackColor,
+                                // ),
+                                hintStyle: hintStyle,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                  borderSide: BorderSide.none,
+                                ),
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                              ),
+                            ),
+                        
+                            const SizedBox(height: 14),
+                        
+                            // ========== EMAIL FIELD ==========
+                            Text(
+                              LanguageHelper.t('settings_email'),
+                              style: labelStyle,
+                            ),
+                            const SizedBox(height: 6),
+                            TextField(
+                              controller: _emailController,
+                              keyboardType: TextInputType.emailAddress,
+                              decoration: InputDecoration(
+                                hintText: LanguageHelper.t(
+                                  'settings_email_hint',
+                                ),
+                                filled: true,
+                                fillColor: theme.cardColor,
+                        
+                                // labelStyle: TextStyle(
+                                //   color:
+                                //       isSelected
+                                //           ? textColor
+                                //           : lightblackColor,
+                                // ),
+                                hintStyle: hintStyle,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                  borderSide: BorderSide.none,
+                                ),
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                              ),
+                            ),
+                        
+                            const SizedBox(height: 18),
+                        
+                            GestureDetector(
+                              onTap:
+                                  isSelected
+                                      ? () {
+                                        BlocProvider.of<UserBloc>(
+                                          context,
+                                        ).add(
+                                          UserProfileCreateEvent(
+                                            email:
+                                                _emailController.text.trim(),
+                                            fullName:
+                                                _nameController.text.trim(),
+                                          ),
+                                        );
+                                      }
+                                      : null,
+                              // () {
+                        
+                              // },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(32),
+                                  gradient: buildThemeGradient(
+                                    context,
+                                    isPrimary: true,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color:
+                                          brightness == Brightness.dark
+                                              ? cs.primary.withOpacity(0.18)
+                                              : cs.primary.withOpacity(0.18),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 6),
+                                    ),
+                                  ],
+                                ),
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                // decoration: BoxDecoration(
+                                //   borderRadius: BorderRadius.circular(28),
+                                // gradient: LinearGradient(colors: [cs.primary, cs.primaryContainer]),
+                                //   boxShadow: [
+                                //     BoxShadow(
+                                //       color: cs.primary.withOpacity(0.22),
+                                //       blurRadius: 8,
+                                //       offset: const Offset(0, 3),
+                                //     ),
+                                //   ],
+                                // ),
+                                child: Center(
+                                  child: Text(
+                                    LanguageHelper.t('settings_save_changes'),
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: cs.onPrimary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        
+                            const SizedBox(height: 20),
+                          ],
                         ),
 
-                        // ========== MY PROFILE HEADING ==========
-                        const Divider(
+                        Divider(
                           height: 32,
                           thickness: 0.6,
-                          color: Color(0xFFE5E7EB),
+                          color: cs.outline.withOpacity(0.9),
                         ),
 
-                        // ========== NOTIFICATION PREFERENCES ==========
                         Text(
                           LanguageHelper.t('settings_notification_preferences'),
                           style: Theme.of(
@@ -417,7 +441,7 @@ class _Setting extends State<Setting> {
                           ).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                             fontSize: isMobile ? 16 : 18,
-                            color: const Color(0xFF111827),
+                            color: cs.onBackground,
                           ),
                         ),
 
@@ -453,10 +477,10 @@ class _Setting extends State<Setting> {
                         ),
 
                         const SizedBox(height: 16),
-                        const Divider(
+                        Divider(
                           height: 32,
                           thickness: 0.6,
-                          color: Color(0xFFE5E7EB),
+                          color: cs.outline.withOpacity(0.9),
                         ),
 
                         // ========== APP THEME ==========
@@ -467,13 +491,12 @@ class _Setting extends State<Setting> {
                           ).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                             fontSize: isMobile ? 16 : 18,
-                            color: const Color(0xFF111827),
+                            color: cs.onBackground,
                           ),
                         ),
                         const SizedBox(height: 14),
 
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Expanded(
                               child: _ThemeOptionCard(
@@ -482,10 +505,10 @@ class _Setting extends State<Setting> {
                                 isSelected:
                                     _selectedTheme == AppThemeOption.light,
                                 onTap: () {
-                                  setState(() {
-                                    _selectedTheme = AppThemeOption.light;
-                                  });
-                                  // TODO: apply theme
+                                  setState(
+                                    () => _selectedTheme = AppThemeOption.light,
+                                  );
+                                  themeProvider.setTheme(AppThemeOption.light);
                                 },
                               ),
                             ),
@@ -496,11 +519,11 @@ class _Setting extends State<Setting> {
                                 labelKey: 'settings_theme_dark',
                                 isSelected:
                                     _selectedTheme == AppThemeOption.dark,
-                                darkStyle: true,
                                 onTap: () {
-                                  setState(() {
-                                    _selectedTheme = AppThemeOption.dark;
-                                  });
+                                  setState(
+                                    () => _selectedTheme = AppThemeOption.dark,
+                                  );
+                                  themeProvider.setTheme(AppThemeOption.dark);
                                 },
                               ),
                             ),
@@ -512,9 +535,11 @@ class _Setting extends State<Setting> {
                                 isSelected:
                                     _selectedTheme == AppThemeOption.system,
                                 onTap: () {
-                                  setState(() {
-                                    _selectedTheme = AppThemeOption.system;
-                                  });
+                                  setState(
+                                    () =>
+                                        _selectedTheme = AppThemeOption.system,
+                                  );
+                                  themeProvider.setTheme(AppThemeOption.system);
                                 },
                               ),
                             ),
@@ -522,10 +547,10 @@ class _Setting extends State<Setting> {
                         ),
 
                         const SizedBox(height: 24),
-                        const Divider(
+                        Divider(
                           height: 32,
                           thickness: 0.6,
-                          color: Color(0xFFE5E7EB),
+                          color: cs.outline.withOpacity(0.9),
                         ),
 
                         const SizedBox(height: 8),
@@ -544,19 +569,16 @@ class _Setting extends State<Setting> {
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(28),
-                              border: Border.all(
-                                color: const Color(0xFFEF4444),
-                                width: 1.5,
-                              ),
+                              border: Border.all(color: cs.error, width: 1.5),
                               color: Colors.transparent,
                             ),
                             child: Center(
                               child: Text(
                                 LanguageHelper.t('settings_logout'),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFFEF4444),
+                                  color: cs.error,
                                 ),
                               ),
                             ),
@@ -645,8 +667,6 @@ class _Setting extends State<Setting> {
   }
 }
 
-// ================= TOGGLE ROW =================
-
 class _SettingsToggleRow extends StatelessWidget {
   final String labelKey;
   final bool value;
@@ -660,6 +680,8 @@ class _SettingsToggleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -667,49 +689,90 @@ class _SettingsToggleRow extends StatelessWidget {
           Expanded(
             child: Text(
               LanguageHelper.t(labelKey),
-              style: const TextStyle(fontSize: 14.5, color: Color(0xFF111827)),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                // fontSize: isMobile ? 16 : 18,
+                color: cs.onBackground,
+              ),
             ),
           ),
+
           GestureDetector(
-            onTap: () => onChanged(!value),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              width: 42,
-              height: 24,
-              padding: const EdgeInsets.symmetric(horizontal: 3),
-              decoration: BoxDecoration(
-                color:
-                    value ? const Color(0xFFFFA726) : const Color(0xFFE5E7EB),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Align(
-                alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-                child: Container(
-                  width: 18,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    color: value ? Colors.white : Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child:
-                      value
-                          ? const Icon(
-                            Icons.check,
-                            size: 12,
-                            color: Color(0xFFF59E0B),
-                          )
-                          : null,
-                ),
-              ),
+  onTap: () => onChanged(!value),
+  child: AnimatedContainer(
+    duration: const Duration(milliseconds: 160),
+    width: 42,
+    height: 24,
+    padding: const EdgeInsets.symmetric(horizontal: 3),
+    decoration: BoxDecoration(
+      color: value
+          ? getAccentColor(context) 
+          : cs.surfaceVariant,
+      borderRadius: BorderRadius.circular(24),
+    ),
+    child: Align(
+      alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        width: 18,
+        height: 18,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.12),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
-          ),
+          ],
+        ),
+        child: value
+            ? Icon(
+                Icons.check,
+                size: 12,
+                color: getAccentColor(context), // 🔥 FIX
+              )
+            : null,
+      ),
+    ),
+  ),
+),
+
+          // GestureDetector(
+          //   onTap: () => onChanged(!value),
+          //   child: AnimatedContainer(
+          //     duration: const Duration(milliseconds: 160),
+          //     width: 42,
+          //     height: 24,
+          //     padding: const EdgeInsets.symmetric(horizontal: 3),
+          //     decoration: BoxDecoration(
+          //       color: value ? cs.primary : cs.surfaceVariant,
+          //       borderRadius: BorderRadius.circular(24),
+          //     ),
+          //     child: Align(
+          //       alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+          //       child: Container(
+          //         width: 18,
+          //         height: 18,
+          //         decoration: BoxDecoration(
+          //           color: Colors.white,
+          //           shape: BoxShape.circle,
+          //           boxShadow: [
+          //             BoxShadow(
+          //               color: Colors.black.withOpacity(0.12),
+          //               blurRadius: 4,
+          //               offset: const Offset(0, 2),
+          //             ),
+          //           ],
+          //         ),
+          //         child:
+          //             value
+          //                 ? Icon(Icons.check, size: 12, color: cs.primary)
+          //                 : null,
+          //       ),
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );
@@ -720,63 +783,60 @@ class _ThemeOptionCard extends StatelessWidget {
   final IconData icon;
   final String labelKey;
   final bool isSelected;
-  final bool darkStyle;
   final VoidCallback onTap;
 
   const _ThemeOptionCard({
     required this.icon,
     required this.labelKey,
     required this.isSelected,
-    this.darkStyle = false,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final label = LanguageHelper.t(labelKey);
-
-    final bgColor = darkStyle ? const Color(0xFF111827) : Colors.white;
-
-    final wrapperColor = isSelected ? const Color(0xFFFFF0C2) : Colors.white;
 
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
-          color: wrapperColor,
+          gradient:
+              isSelected ? buildThemeGradient(context, isPrimary: true) : null,
+          color: isSelected ? null : cs.surface,
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
             color:
-                isSelected ? const Color(0xFFFFA726) : const Color(0xFFE5E7EB),
+                isSelected
+                    ? (isDark ? cs.primary : const Color(0xFFFFA726))
+                    : cs.outline.withOpacity(0.6),
             width: isSelected ? 1.6 : 1.0,
           ),
         ),
         child: Column(
           children: [
             Container(
-              height: 46,
+              height: 44,
               width: double.infinity,
               decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: BorderRadius.circular(16),
+                color: isSelected ? Colors.transparent : cs.surfaceVariant,
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(
                 icon,
-                color: darkStyle ? Colors.white : const Color(0xFF111827),
+                color: isSelected ? cs.onPrimary : cs.onBackground,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               label,
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color:
-                    darkStyle
-                        ? const Color(0xFF111827)
-                        : const Color(0xFF111827),
+                color: isSelected ? cs.onPrimary : cs.onBackground,
               ),
             ),
           ],
@@ -784,4 +844,10 @@ class _ThemeOptionCard extends StatelessWidget {
       ),
     );
   }
+}
+Color getAccentColor(BuildContext context) {
+  final cs = Theme.of(context).colorScheme;
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+
+  return isDark ? cs.primary : const Color(0xFFFFA726);
 }

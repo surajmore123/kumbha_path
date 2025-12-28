@@ -11,6 +11,9 @@ import 'package:kumbha_path/src/components/chat_screen/chat_input.dart';
 import 'package:kumbha_path/src/components/chat_screen/send_label.dart';
 import 'package:kumbha_path/src/components/chat_screen/typing_indicator.dart';
 import 'package:kumbha_path/src/constant/config.dart';
+import 'package:kumbha_path/src/constant/language_helper.dart';
+import 'package:kumbha_path/src/constant/theme_provider.dart';
+import 'package:provider/provider.dart';
 
 class AskGuruAiScreen extends StatefulWidget {
   const AskGuruAiScreen({super.key});
@@ -89,21 +92,41 @@ class _AskGuruAiScreenState extends State<AskGuruAiScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     final size = MediaQuery.of(context).size;
     final isMobile = size.width < 600;
+     final cs = theme.colorScheme;
 
     return MainLayout(
       ctx: 1,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFE7B5),
+        backgroundColor:
+            theme.scaffoldBackgroundColor,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: cs.onSurface),
+          onPressed: () => Navigator.pop(context),
+        ),
+        
+        iconTheme:
+            theme.appBarTheme.iconTheme ??
+            IconThemeData(color: colorScheme.onPrimary),
         actions: [
           Container(
             decoration: BoxDecoration(
-              color: const Color(0xFFFBDDB6),
+              color:
+                  isDark
+                      ? colorScheme.surfaceVariant
+                      : colorScheme.primary.withOpacity(0.08),
               borderRadius: BorderRadius.circular(20),
             ),
+            margin: const EdgeInsets.only(right: 12),
             child: IconButton(
-              icon: const Icon(Icons.more_vert, color: Color(0xFFFFF2D8)),
+              icon: Icon(Icons.more_vert, color: colorScheme.onSurface),
+
               onPressed: () {},
             ),
           ),
@@ -121,20 +144,42 @@ class _AskGuruAiScreenState extends State<AskGuruAiScreen> {
         },
         builder: (context, state) {
           return Scaffold(
-            backgroundColor: const Color(0xFFFBDDB6),
+            backgroundColor: theme.scaffoldBackgroundColor,
+
             body: SafeArea(
               child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0xFFFFF0CF),
-                      Color(0xFFFFE7B5),
-                      Color(0xFFFFF2D8),
-                    ],
-                  ),
+                decoration: BoxDecoration(
+                  gradient:
+                      isDark
+                          ? LinearGradient(
+                            colors: [
+                              colorScheme.background,
+                              colorScheme.surface,
+                            ],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          )
+                          : const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Color(0xFFFFF0CF),
+                              Color(0xFFFFE7B5),
+                              Color(0xFFFFF2D8),
+                            ],
+                          ),
                 ),
+                // decoration: const BoxDecoration(
+                //   gradient: LinearGradient(
+                //     begin: Alignment.topCenter,
+                //     end: Alignment.bottomCenter,
+                //     colors: [
+                //       Color(0xFFFFF0CF),
+                //       Color(0xFFFFE7B5),
+                //       Color(0xFFFFF2D8),
+                //     ],
+                //   ),
+                // ),
                 child: Column(
                   children: [
                     Padding(
@@ -145,22 +190,42 @@ class _AskGuruAiScreenState extends State<AskGuruAiScreen> {
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
+                              children: [
                                 Text(
                                   'Ask Guru AI',
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFFB35C00),
-                                  ),
+                                  style: theme.textTheme.headlineSmall
+                                      ?.copyWith(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w800,
+                                        color:
+                                            isDark
+                                                ? colorScheme.primary
+                                                : const Color(0xFFB35C00),
+                                      ),
                                 ),
+                                // Text(
+                                //   'Ask Guru AI',
+                                //   style: TextStyle(
+                                //     fontSize: 24,
+                                //     fontWeight: FontWeight.w800,
+                                //     color: Color(0xFFB35C00),
+                                //   ),
+                                // ),
                                 SizedBox(height: 4),
                                 Text(
                                   'Seek. Learn. Reflect.',
-                                  style: TextStyle(
+                                  style: theme.textTheme.bodySmall?.copyWith(
                                     fontSize: 14,
-                                    color: Color(0xFFCC8B40),
+                                    color:
+                                        isDark
+                                            ? colorScheme.onBackground
+                                                .withOpacity(0.8)
+                                            : const Color(0xFFCC8B40),
                                   ),
+                                  // style: TextStyle(
+                                  //   fontSize: 14,
+                                  //   color: Color(0xFFCC8B40),
+                                  // ),
                                 ),
                               ],
                             ),
@@ -215,11 +280,15 @@ class _AskGuruAiScreenState extends State<AskGuruAiScreen> {
                             content = _ImageBubble(
                               isGuru: msg.isGuru,
                               imagePath: msg.mediaPath!,
+                              colorScheme: colorScheme,
+                              isDark: isDark,
                             );
                           } else {
                             content = _AudioBubble(
                               isGuru: msg.isGuru,
                               audioPath: msg.mediaPath!,
+                              colorScheme: colorScheme,
+                              isDark: isDark,
                             );
                           }
 
@@ -261,9 +330,7 @@ class _AskGuruAiScreenState extends State<AskGuruAiScreen> {
                         16,
                         isMobile ? 16 : 20,
                       ),
-                      child: ChatInputBar(
-                        onMessageSent: _scrollToBottom,
-                      ),
+                      child: ChatInputBar(onMessageSent: _scrollToBottom),
                     ),
                   ],
                 ),
@@ -279,9 +346,16 @@ class _AskGuruAiScreenState extends State<AskGuruAiScreen> {
 class _ImageBubble extends StatelessWidget {
   final bool isGuru;
   final String imagePath;
+  final ColorScheme colorScheme;
+  final bool isDark;
 
-  const _ImageBubble({Key? key, required this.isGuru, required this.imagePath})
-    : super(key: key);
+  const _ImageBubble({
+    Key? key,
+    required this.isGuru,
+    required this.imagePath,
+    required this.colorScheme,
+    required this.isDark,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -304,6 +378,10 @@ class _ImageBubble extends StatelessWidget {
       alignment: isGuru ? Alignment.centerLeft : Alignment.centerRight,
       child: Container(
         decoration: BoxDecoration(
+          color:
+              isGuru
+                  ? colorScheme.primaryContainer
+                  : colorScheme.secondaryContainer,
           // color: isGuru ? const Color(0xFFFFF2D8) : const Color(0xFFFFC72C),
           borderRadius: radius,
         ),
@@ -320,9 +398,16 @@ class _ImageBubble extends StatelessWidget {
 class _AudioBubble extends StatelessWidget {
   final bool isGuru;
   final String audioPath;
+  final ColorScheme colorScheme;
+  final bool isDark;
 
-  const _AudioBubble({Key? key, required this.isGuru, required this.audioPath})
-    : super(key: key);
+  const _AudioBubble({
+    Key? key,
+    required this.isGuru,
+    required this.audioPath,
+    required this.colorScheme,
+    required this.isDark,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -332,18 +417,26 @@ class _AudioBubble extends StatelessWidget {
       bottomLeft: Radius.circular(isGuru ? 4 : 18),
       bottomRight: Radius.circular(isGuru ? 18 : 4),
     );
+    final bgColor =
+        isGuru ? colorScheme.primaryContainer : colorScheme.secondaryContainer;
+    final textColor =
+        isGuru
+            ? colorScheme.onPrimaryContainer
+            : colorScheme.onSecondaryContainer;
+    final iconColor = isGuru ? colorScheme.primary : colorScheme.secondary;
 
     return Align(
       alignment: isGuru ? Alignment.centerLeft : Alignment.centerRight,
       child: Container(
         decoration: BoxDecoration(
-          color: isGuru ? const Color(0xFFFFF2D8) : const Color(0xFFFFC72C),
+          color: bgColor,
+          // color: isGuru ? const Color(0xFFFFF2D8) : const Color(0xFFFFC72C),
           borderRadius: radius,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          children: const [
+          children: [
             Icon(Icons.mic, size: 20, color: Color(0xFF6C4A00)),
             SizedBox(width: 8),
             Text(
@@ -351,8 +444,13 @@ class _AudioBubble extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF6C4A00),
+                color: textColor,
               ),
+              // style: TextStyle(
+              //   fontSize: 13,
+              //   fontWeight: FontWeight.w500,
+              //   color: Color(0xFF6C4A00),
+              // ),
             ),
           ],
         ),
