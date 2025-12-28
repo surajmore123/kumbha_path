@@ -1,5 +1,6 @@
 import 'package:kumbha_path/src/network/api/user_api.dart';
-import 'package:kumbha_path/src/repository/webhook_repository/repository.dart';
+import 'package:kumbha_path/src/repository/repository/repository.dart';
+
 
 class UserRepository extends Repository {
   final UserApi userApi = UserApi();

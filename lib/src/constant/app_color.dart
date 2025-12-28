@@ -95,3 +95,34 @@ LinearGradient disabledGradient = LinearGradient(
     launcherRight.withOpacity(0.4),
   ],
 );
+
+
+
+
+LinearGradient buildThemeGradient(BuildContext context, {required bool isPrimary}) {
+  final cs = Theme.of(context).colorScheme;
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+
+  if (!isPrimary) {
+    return const LinearGradient(colors: [Colors.transparent, Colors.transparent]);
+  }
+
+  return isDark
+      ? LinearGradient(
+          colors: [
+            cs.primary,
+            cs.primaryContainer,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        )
+      : const LinearGradient(
+          colors: [
+            Color(0xFFFFA726),
+            Color(0xFFFFC107),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        );
+}
+

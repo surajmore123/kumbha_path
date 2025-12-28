@@ -22,7 +22,6 @@ class AppRepository extends UserChatApi {
     );
   }
 
-  //chatHistory
 
   Future<dynamic> chatHistory(jsonData) async {
     return userChatApi.chatHistory(jsonData);

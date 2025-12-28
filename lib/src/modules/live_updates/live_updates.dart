@@ -5,51 +5,48 @@ import 'package:flutter/material.dart';
 import 'package:kumbha_path/src/constant/app_responsive.dart';
 import 'package:kumbha_path/src/constant/language_helper.dart';
 
-
 class LiveUpdates extends StatefulWidget {
   const LiveUpdates({super.key});
 
   @override
-  State<LiveUpdates> createState() =>
-      _LiveUpdates();
+  State<LiveUpdates> createState() => _LiveUpdates();
 }
 
 class _LiveUpdates extends State<LiveUpdates> {
-  int _selectedTabIndex = 0; // 0 = All, 1 = Alerts, 2 = Messages
+  int _selectedTabIndex = 0; 
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
     final isMobile = context.isMobile;
     final isTablet = context.isTablet;
     final isDesktop = context.isDesktop;
 
     return MainLayout(
       showDefaultBottom: true,
-      ctx: 1, // or whichever bottom index you want
+      ctx: 1,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF7F7F5),
+        backgroundColor: theme.appBarTheme.backgroundColor ?? cs.surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.black87),
-          onPressed: () {
-            // TODO: open drawer / menu
-          },
+          icon: Icon(Icons.menu, color: cs.onSurface),
+          onPressed: () {},
         ),
         centerTitle: true,
         title: Text(
           LanguageHelper.t('live_updates_title'),
-          style: const TextStyle(
+          style: theme.textTheme.titleMedium?.copyWith(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF111827),
+            color: cs.onSurface,
           ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.black87),
-            onPressed: () {
-              // TODO: refresh logic
-            },
+            icon: Icon(Icons.refresh, color: cs.onSurface),
+            onPressed: () {},
           ),
         ],
       ),
@@ -59,17 +56,13 @@ class _LiveUpdates extends State<LiveUpdates> {
           final list = _filteredItems;
 
           return Container(
-            color: const Color(0xFFF7F7F5),
+            color: theme.scaffoldBackgroundColor,
             child: Column(
               children: [
                 // ======= TABS =======
                 Padding(
                   padding: EdgeInsets.symmetric(
-                    horizontal: isMobile
-                        ? 16
-                        : isTablet
-                            ? 32
-                            : 56,
+                    horizontal: isMobile ? 16 : isTablet ? 32 : 56,
                     vertical: isMobile ? 12 : 16,
                   ),
                   child: _TabsBar(
@@ -86,11 +79,7 @@ class _LiveUpdates extends State<LiveUpdates> {
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.symmetric(
-                      horizontal: isMobile
-                          ? 16
-                          : isTablet
-                              ? 32
-                              : 56,
+                      horizontal: isMobile ? 16 : isTablet ? 32 : 56,
                     ),
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
@@ -100,10 +89,8 @@ class _LiveUpdates extends State<LiveUpdates> {
                         itemCount: list.length,
                         separatorBuilder: (_, __) =>
                             const SizedBox(height: 10),
-                        itemBuilder: (context, index) {
-                          final item = list[index];
-                          return _UpdateCard(item: item);
-                        },
+                        itemBuilder: (context, index) =>
+                            _UpdateCard(item: list[index]),
                       ),
                     ),
                   ),
@@ -116,80 +103,78 @@ class _LiveUpdates extends State<LiveUpdates> {
     );
   }
 
+  // ------------- ITEMS -----------------
+
   List<_LiveUpdateItem> get _allItems => [
         _LiveUpdateItem(
           type: _UpdateType.alert,
           icon: Icons.groups_2_outlined,
           titleKey: 'live_update_high_crowd_title',
           timeKey: 'live_update_5_mins_ago',
-          accentColor: const Color(0xFFEF4444),
-          iconBgColor: const Color(0xFFFFE4E6),
-          iconColor: const Color(0xFFDC2626),
+          accentColor: Colors.red,
+          iconBgColor: Colors.red.withOpacity(0.12),
+          iconColor: Colors.red.shade700,
         ),
         _LiveUpdateItem(
           type: _UpdateType.alert,
           icon: Icons.wb_sunny_outlined,
           titleKey: 'live_update_next_snan_title',
           timeKey: 'live_update_1_hour_ago',
-          accentColor: const Color(0xFF3B82F6),
-          iconBgColor: const Color(0xFFE0F2FE),
-          iconColor: const Color(0xFF2563EB),
+          accentColor: Colors.blue,
+          iconBgColor: Colors.blue.withOpacity(0.12),
+          iconColor: Colors.blue.shade700,
         ),
         _LiveUpdateItem(
           type: _UpdateType.message,
           icon: Icons.directions_bus_filled_outlined,
           titleKey: 'live_update_shuttle_title',
           timeKey: 'live_update_1_hour_ago',
-          accentColor: const Color(0xFF10B981),
-          iconBgColor: const Color(0xFFD1FAE5),
-          iconColor: const Color(0xFF059669),
+          accentColor: Colors.green,
+          iconBgColor: Colors.green.withOpacity(0.12),
+          iconColor: Colors.green.shade700,
         ),
         _LiveUpdateItem(
           type: _UpdateType.alert,
           icon: Icons.warning_amber_outlined,
           titleKey: 'live_update_gate_closed_title',
           timeKey: 'live_update_2_hours_ago',
-          accentColor: const Color(0xFFEF4444),
-          iconBgColor: const Color(0xFFFFE4E6),
-          iconColor: const Color(0xFFDC2626),
+          accentColor: Colors.red,
+          iconBgColor: Colors.red.withOpacity(0.12),
+          iconColor: Colors.red.shade700,
         ),
         _LiveUpdateItem(
           type: _UpdateType.message,
           icon: Icons.temple_hindu_outlined,
           titleKey: 'live_update_evening_aarti_title',
           timeKey: 'live_update_3_hours_ago',
-          accentColor: const Color(0xFF3B82F6),
-          iconBgColor: const Color(0xFFE0F2FE),
-          iconColor: const Color(0xFF2563EB),
+          accentColor: Colors.blue,
+          iconBgColor: Colors.blue.withOpacity(0.12),
+          iconColor: Colors.blue.shade700,
         ),
         _LiveUpdateItem(
           type: _UpdateType.message,
           icon: Icons.cloudy_snowing,
           titleKey: 'live_update_light_showers_title',
           timeKey: 'live_update_4_hours_ago',
-          accentColor: const Color(0xFF10B981),
-          iconBgColor: const Color(0xFFD1FAE5),
-          iconColor: const Color(0xFF059669),
+          accentColor: Colors.green,
+          iconBgColor: Colors.green.withOpacity(0.12),
+          iconColor: Colors.green.shade700,
         ),
       ];
 
   List<_LiveUpdateItem> get _filteredItems {
     switch (_selectedTabIndex) {
-      case 1: // Alerts
-        return _allItems
-            .where((e) => e.type == _UpdateType.alert)
-            .toList();
-      case 2: // Messages
-        return _allItems
-            .where((e) => e.type == _UpdateType.message)
-            .toList();
-      default: // All
+      case 1:
+        return _allItems.where((e) => e.type == _UpdateType.alert).toList();
+      case 2:
+        return _allItems.where((e) => e.type == _UpdateType.message).toList();
+      default:
         return _allItems;
     }
   }
 }
 
-// =============== DATA MODEL ===============
+// ================== DATA MODEL ==================
 
 enum _UpdateType { alert, message }
 
@@ -213,23 +198,22 @@ class _LiveUpdateItem {
   });
 }
 
-// =============== TABS BAR ===============
+// ================== TABS BAR ==================
 
 class _TabsBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onChanged;
 
-  const _TabsBar({
-    required this.selectedIndex,
-    required this.onChanged,
-  });
+  const _TabsBar({required this.selectedIndex, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Container(
       height: 44,
       decoration: BoxDecoration(
-        color: const Color(0xFFE5E7EB),
+        color: cs.surfaceVariant,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
@@ -273,6 +257,7 @@ class _TabChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final bool isSelected = index == selectedIndex;
 
     return Expanded(
@@ -282,7 +267,7 @@ class _TabChip extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white : Colors.transparent,
+            color: isSelected ? cs.surface : Colors.transparent,
             borderRadius: BorderRadius.circular(24),
           ),
           alignment: Alignment.center,
@@ -291,8 +276,8 @@ class _TabChip extends StatelessWidget {
             style: TextStyle(
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
               color: isSelected
-                  ? const Color(0xFF111827)
-                  : const Color(0xFF6B7280),
+                  ? cs.onSurface
+                  : cs.onSurface.withOpacity(0.6),
               fontSize: 14,
             ),
           ),
@@ -302,7 +287,7 @@ class _TabChip extends StatelessWidget {
   }
 }
 
-// =============== UPDATE CARD ===============
+// ================== UPDATE CARD ==================
 
 class _UpdateCard extends StatelessWidget {
   final _LiveUpdateItem item;
@@ -311,16 +296,19 @@ class _UpdateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cs.surface,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: cs.shadow.withOpacity(0.06),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
@@ -329,7 +317,7 @@ class _UpdateCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Vertical accent bar
+            // Accent bar
             Container(
               width: 3,
               height: 40,
@@ -356,25 +344,25 @@ class _UpdateCard extends StatelessWidget {
             ),
             const SizedBox(width: 10),
 
-            // Texts
+            // Text area
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     LanguageHelper.t(item.titleKey),
-                    style: const TextStyle(
+                    style: theme.textTheme.bodyMedium?.copyWith(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF111827),
+                      color: cs.onSurface,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     LanguageHelper.t(item.timeKey),
-                    style: const TextStyle(
+                    style: theme.textTheme.bodySmall?.copyWith(
                       fontSize: 12,
-                      color: Color(0xFF9CA3AF),
+                      color: cs.onSurfaceVariant,
                     ),
                   ),
                 ],

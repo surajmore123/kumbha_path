@@ -37,7 +37,7 @@ class _MainLayoutState extends State<MainLayout> {
     double paddingFactor = screenWidth < 600 ? 0.05 : 0.03;
 
     return Scaffold(
-      backgroundColor: widget.backgroundColor ?? Colors.white,
+       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
 
       resizeToAvoidBottomInset: true,
 
@@ -137,7 +137,7 @@ class _MainLayoutState extends State<MainLayout> {
             BottomNavigationBarItem(
               icon: Image.asset('assets/icons/chatbot.png', height: 24, width: 24),
           
-              activeIcon: Image.asset('assets/icons/chatbot_orange.png', height: 24, width: 24),
+              activeIcon: Image.asset('assets/icons/chatbot.png', height: 24, width: 24),
               label: 'AI Chat',
             ),
             BottomNavigationBarItem(

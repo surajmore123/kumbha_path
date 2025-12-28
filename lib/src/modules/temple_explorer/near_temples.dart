@@ -1,154 +1,270 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:kumbha_path/main_layout.dart';
+import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_bloc.dart';
+import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_event.dart';
+import 'package:kumbha_path/src/bloc/main_bloc/app_bloc.dart';
+import 'package:kumbha_path/src/bloc/main_bloc/app_event.dart';
+import 'package:kumbha_path/src/bloc/main_bloc/app_state.dart';
+
+import 'package:kumbha_path/src/constant/app_color.dart';
 import 'package:kumbha_path/src/constant/app_responsive.dart';
 import 'package:kumbha_path/src/constant/language_helper.dart';
-class NearTemples extends StatelessWidget {
+import 'package:kumbha_path/src/constant/location_service.dart';
+
+class NearTemples extends StatefulWidget {
   const NearTemples({super.key});
 
   @override
+  State<NearTemples> createState() => _NearTemplesState();
+}
+
+class _NearTemplesState extends State<NearTemples> {
+  int selectedRadius = 5;
+  bool _locationInitialized = false;
+  late String userLat;
+  late String userLng;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (_locationInitialized) return;
+
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+    if (args != null && args['lat'] != null && args['lng'] != null) {
+      userLat = args['lat'];
+      userLng = args['lng'];
+    } else {
+      final state = context.read<AppBloc>().state;
+
+      if (state.lastUserLat != null && state.lastUserLng != null) {
+        userLat = state.lastUserLat!;
+        userLng = state.lastUserLng!;
+      } else {
+        _requestLocationAgain();
+        return;
+      }
+    }
+
+    _locationInitialized = true;
+  }
+
+  Future<void> _requestLocationAgain() async {
+    final position = await LocationService.getCurrentLocation();
+
+    userLat = position.latitude.toString();
+    userLng = position.longitude.toString();
+
+    context.read<AppBloc>().add(
+      GetNearbyTemplesEvent(
+        latitude: userLat,
+        longitude: userLng,
+        radius: selectedRadius.toString(),
+        limit: 5,
+      ),
+    );
+
+    _locationInitialized = true;
+  }
+
+  void _changeRadius(int radius) {
+    setState(() => selectedRadius = radius);
+
+    context.read<AppBloc>().add(
+      GetNearbyTemplesEvent(
+        latitude: userLat,
+        longitude: userLng,
+        radius: radius.toString(),
+        limit: 5,
+      ),
+    );
+  }
+
+  void _showRadiusSelector() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder:
+          (_) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children:
+                [2, 5, 10].map((km) {
+                  return ListTile(
+                    title: Text("$km km radius"),
+                    trailing:
+                        selectedRadius == km ? const Icon(Icons.check) : null,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _changeRadius(km);
+                    },
+                  );
+                }).toList(),
+          ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final isMobile = context.isMobile;
     final isTablet = context.isTablet;
     final isDesktop = context.isDesktop;
-
-   
-    final temples = [
-      {
-        'titleKey': 'triambak_title',
-        'descriptionKey': 'triambak_description',
-        'image': 'assets/images/triambakeshwar.png',
-      },
-      {
-        'titleKey': 'kashi_title',
-        'descriptionKey': 'kashi_description',
-        'image': 'assets/images/kashi.png',
-      },
-      {
-        'titleKey': 'mahakal_title',
-        'descriptionKey': 'mahakal_description',
-        'image': 'assets/images/rameshwaram.png',
-      },
-      {
-        'titleKey': 'sankat_title',
-        'descriptionKey': 'sankat_description',
-        'image': 'assets/images/kedarnath.png',
-      },
-    ];
 
     return MainLayout(
       showDefaultBottom: true,
       ctx: 0,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: cs.surface,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: Icon(Icons.arrow_back, color: cs.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          LanguageHelper.t('nearby_temples_title'), // e.g. "Nearby Temples"
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          "Nearby Temples",
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        actions: const [
+        actions: [
           Padding(
-            padding: EdgeInsets.only(right: 12),
-            child: Icon(Icons.search),
+            padding: const EdgeInsets.only(right: 12),
+            child: GestureDetector(
+              onTap: _showRadiusSelector,
+              child: Chip(
+                label: Text("$selectedRadius km"),
+                avatar: const Icon(Icons.tune, size: 18),
+              ),
+            ),
           ),
         ],
       ),
       body: ValueListenableBuilder<String>(
         valueListenable: LanguageHelper.currentLang,
         builder: (context, lang, _) {
-          final titleStyle =
-              Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    fontSize: isMobile
-                        ? 18
-                        : isTablet
-                            ? 20
-                            : 22,
-                  );
-
-          final subtitleStyle =
-              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontSize: isMobile ? 13 : 14,
-                    color: Colors.grey[700],
-                    height: 1.4,
-                  );
-
-          return Container(
-            color: const Color(0xFFF2F6FB),
-            child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: isMobile
-                    ? 16
+          final titleStyle = Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            fontSize:
+                isMobile
+                    ? 18
                     : isTablet
-                        ? 32
-                        : 56,
-                vertical: isMobile ? 16 : 24,
-              ),
-              child: ConstrainedBox(
-                constraints:
-                    BoxConstraints(maxWidth: isDesktop ? 520 : 480),
-                child: Column(
-                  children: [
-                    // =================== MAP CIRCLE ===================
-                    Card(
-                      color: Colors.white,
-                      elevation: 1.5,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Center(
-                          child: SizedBox(
-                            width: isMobile ? 260 : 300,
-                            height: isMobile ? 260 : 300,
-                            child: ClipOval(
-                              child: Image.asset(
-                                'assets/images/map_circle.png',
-                                fit: BoxFit.cover, // fills the circle
-                              ),
+                    ? 20
+                    : 22,
+          );
+
+          final subtitleStyle = Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(
+            fontSize: isMobile ? 13 : 14,
+            color: Colors.grey[700],
+            height: 1.4,
+          );
+          return BlocBuilder<AppBloc, AppState>(
+            builder: (context, state) {
+              if (state.status == AppStatus.loading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final temples = state.nearbyTemples?.temples ?? [];
+
+              if (temples.isEmpty) {
+                return const Center(child: Text("No nearby temples found"));
+              }
+
+              return ListView(
+                padding: EdgeInsets.symmetric(
+                  horizontal:
+                      isMobile
+                          ? 16
+                          : isTablet
+                          ? 32
+                          : 56,
+                  vertical: isMobile ? 16 : 24,
+                ),
+                children: [
+                  Card(
+                    color: Colors.white,
+                    elevation: 1.5,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Center(
+                        child: SizedBox(
+                          width: isMobile ? 260 : 300,
+                          height: isMobile ? 260 : 300,
+                          child: ClipOval(
+                            child: Image.asset(
+                              'assets/images/map_circle.png',
+                              fit: BoxFit.cover, // fills the circle
                             ),
                           ),
                         ),
                       ),
                     ),
+                  ),
 
-                    const SizedBox(height: 24),
+                  const SizedBox(height: 24),
+                  ...temples.map(
+                    (temple) => Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: _TempleCard(
+                        title: temple.name ?? '',
+                        distanceaway:
+                            "${temple.distanceKm?.toStringAsFixed(2)} km away",
+                        crowdLevel:
+                            " Crowd Level : ${temple.crowdLevel.toString()}",
+                        imagePath:
+                            temple.imageUrl ?? 'assets/images/placeholder.jpg',
+                        onTap: () {
+                          context.read<AppDetailsBloc>().add(
+                            GetTempleDetail(
+                              templeId: temple.templeId.toString(),
+                            ),
+                          );
+                          Navigator.pushNamed(context, '/templeDetail');
 
-                    // =================== LIST OF TEMPLES ===================
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: temples.length,
-                      itemBuilder: (context, index) {
-                        final temple = temples[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 16.0),
-                          child: _TempleCard(
-                            title: LanguageHelper.t(
-                              temple['titleKey'] as String,
-                            ),
-                            description: LanguageHelper.t(
-                              temple['descriptionKey'] as String,
-                            ),
-                            imagePath: temple['image'] as String,
-                            titleStyle: titleStyle,
-                            subtitleStyle: subtitleStyle,
-                            onTap: () {
-                              // TODO: navigate to temple details
-                            },
-                          ),
-                        );
-                      },
+                          // Navigator.pushNamed(
+                          //   context,
+                          //   '/templeDetail',
+                          //   arguments: temple,
+                          // );
+                        },
+                      ),
                     ),
-                  ],
-                ),
-              ),
-            ),
+                  ),
+
+                  if (temples.length < (state.nearbyTemples.count ?? 0))
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          context.read<AppBloc>().add(
+                            GetNearbyTemplesEvent(
+                              latitude: userLat,
+                              longitude: userLng,
+                              radius: selectedRadius.toString(),
+                              limit: 5,
+                              isLoadMore: true,
+                            ),
+                          );
+                        },
+                        child: const Text("Load More"),
+                      ),
+                    ),
+                ],
+              );
+            },
           );
         },
       ),
@@ -158,124 +274,105 @@ class NearTemples extends StatelessWidget {
 
 class _TempleCard extends StatelessWidget {
   final String title;
-  final String description;
+  final String distanceaway;
+  final String crowdLevel;
   final String imagePath;
-  final TextStyle? titleStyle;
-  final TextStyle? subtitleStyle;
   final VoidCallback? onTap;
 
   const _TempleCard({
     required this.title,
-    required this.description,
+    required this.distanceaway,
+    required this.crowdLevel,
     required this.imagePath,
-    required this.titleStyle,
-    required this.subtitleStyle,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: Colors.white,
-      elevation: 1.5,
-      shape: RoundedRectangleBorder(
+    final cs = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: buildThemeGradient(context, isPrimary: true),
         borderRadius: BorderRadius.circular(18),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Text column – Flexible to avoid overflow
-              Flexible(
-                fit: FlexFit.tight,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: titleStyle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      description,
-                      style: subtitleStyle,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 12),
-                    _LearnMoreButton(
-                      text: LanguageHelper.t('temple_learn_more'),
-                      onTap: (){
-                         Navigator.pushNamed(context, '/templeDetail');
-                      },
-                    ),
-                  ],
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          // TEXT
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: cs.onPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
                 ),
-              ),
-
-              const SizedBox(width: 12),
-
-              // Image on right
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.asset(
-                  imagePath,
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
+                const SizedBox(height: 6),
+                Text(
+                  distanceaway,
+                  style: TextStyle(
+                    color: cs.onPrimary.withOpacity(0.85),
+                    fontSize: 13,
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+                const SizedBox(height: 6),
 
-class _LearnMoreButton extends StatelessWidget {
-  final String text;
-  final VoidCallback? onTap;
+                Text(
+                  crowdLevel,
+                  style: TextStyle(
+                    color: cs.onPrimary.withOpacity(0.85),
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 6),
 
-  const _LearnMoreButton({required this.text, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          gradient: const LinearGradient(
-            colors: [
-              Color(0xFFFFA726),
-              Color(0xFFFFC107),
-            ],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.orange.withOpacity(0.3),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: ElevatedButton(
+                    onPressed: onTap,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: cs.onPrimary,
+                      foregroundColor: cs.primary,
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 8,
+                      ),
+                    ),
+                    child: const Text("Learn More"),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Text(
-          text,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
           ),
-        ),
+
+          const SizedBox(width: 12),
+
+          // IMAGE
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Image.network(
+              imagePath,
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+              errorBuilder:
+                  (_, __, ___) => Image.asset(
+                    'assets/images/placeholder.png',
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                  ),
+            ),
+          ),
+        ],
       ),
     );
   }

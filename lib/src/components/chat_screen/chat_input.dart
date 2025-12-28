@@ -217,6 +217,8 @@ class ChatInputBarState extends State<ChatInputBar>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final hasText = _controller.text.trim().isNotEmpty;
 
     return Column(
@@ -228,7 +230,7 @@ class ChatInputBarState extends State<ChatInputBar>
             height: 220, // adjust as you like
             width: double.infinity,
             decoration: BoxDecoration(
-              color: Colors.black,
+              color: cs.surfaceVariant,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Stack(
@@ -245,7 +247,6 @@ class ChatInputBarState extends State<ChatInputBar>
                   ),
                 ),
 
-                // close icon (only one option like your first screenshot)
                 Positioned(
                   top: 8,
                   left: 8,
@@ -258,55 +259,24 @@ class ChatInputBarState extends State<ChatInputBar>
                     },
                     child: Container(
                       padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.black54,
+                        color: cs.onSurface.withOpacity(0.4),
                       ),
-                      child: const Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 20,
-                      ),
+                      child: Icon(Icons.close, color: cs.surface, size: 20),
                     ),
                   ),
                 ),
               ],
             ),
           ),
-
-        // if (_selectedImage != null)
-        //   Container(
-        //     margin: const EdgeInsets.only(bottom: 4),
-        //     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        //     decoration: BoxDecoration(
-        //       color: const Color(0xFFF2F4F7),
-        //       borderRadius: BorderRadius.circular(12),
-        //     ),
-        //     child: Row(
-        //       mainAxisSize: MainAxisSize.min,
-        //       children: [
-        //         const Icon(Icons.image, size: 16),
-        //         const SizedBox(width: 6),
-        //         const Text('Image selected', style: TextStyle(fontSize: 12)),
-        //         const SizedBox(width: 8),
-        //         GestureDetector(
-        //           onTap: () {
-        //             setState(() {
-        //               _selectedImage = null;
-        //             });
-        //           },
-        //           child: const Icon(Icons.close, size: 16),
-        //         ),
-        //       ],
-        //     ),
-        //   ),
         Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFFFFFFF),
+            color: cs.surface,
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: cs.shadow.withOpacity(0.08),
                 blurRadius: 6,
                 offset: const Offset(0, 2),
               ),
@@ -317,10 +287,10 @@ class ChatInputBarState extends State<ChatInputBar>
             children: [
               GestureDetector(
                 onTap: _showImageOptions,
-                child: const Icon(
+                child: Icon(
                   Icons.add_circle_outline,
                   size: 26,
-                  color: Color(0xFF6C6C6C),
+                  color: cs.onSurfaceVariant,
                 ),
               ),
               const SizedBox(width: 10),
@@ -328,16 +298,17 @@ class ChatInputBarState extends State<ChatInputBar>
               Expanded(
                 child: TextField(
                   controller: _controller,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'Ask a question or share your thoughts.',
                     hintStyle: TextStyle(
-                      color: Color(0xFFB0B5C0),
+                      color: cs.onSurfaceVariant,
                       fontSize: 14,
                     ),
                     border: InputBorder.none,
                   ),
                   minLines: 1,
                   maxLines: 4,
+                  style: TextStyle(color: cs.onSurface),
                   onChanged: (_) => setState(() {}),
                   onSubmitted: (_) => _onPressSend(),
                 ),
@@ -360,16 +331,13 @@ class ChatInputBarState extends State<ChatInputBar>
                       shape: BoxShape.circle,
                       color:
                           _isRecording
-                              ? const Color(0xFFFF4D4D).withOpacity(0.15)
+                              ? cs.errorContainer.withOpacity(0.25)
                               : Colors.transparent,
                     ),
                     child: Icon(
                       _isRecording ? Icons.stop : Icons.mic_none,
                       size: 22,
-                      color:
-                          _isRecording
-                              ? const Color(0xFFFF4D4D)
-                              : const Color(0xFF6C6C6C),
+                      color: _isRecording ? cs.error : cs.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -385,8 +353,10 @@ class ChatInputBarState extends State<ChatInputBar>
                   decoration: BoxDecoration(
                     color:
                         (hasText || _selectedImage != null)
-                            ? const Color(0xFFFFC72C)
-                            : const Color(0xFFFFC72C).withOpacity(0.6),
+                          
+                      ? cs.primary.withOpacity(0.18)
+                      : cs.primary.withOpacity(0.18),
+
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
