@@ -30,12 +30,11 @@ class UserChatApi extends Api {
       final response = await requestPostMultipart(
         path: 'api/chat/chat-send/',
         file: file,
-        contentType: mime, // <-- "image/jpeg" or "audio/mpeg" etc.
+        contentType: mime, 
         fields: {
-          // Adjust keys as your backend expects:
+     
           'message_type': type == ChatPayloadType.image ? 'image' : 'audio',
-          // if your backend also wants content_type as a field, you can add:
-          // 'content_type': mime,
+      
         },
         accessToken: accessToken,
       );
