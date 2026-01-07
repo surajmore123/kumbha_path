@@ -6,6 +6,7 @@ import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_state.dart';
 import 'package:kumbha_path/src/constant/app_color.dart';
 import 'package:kumbha_path/src/constant/app_responsive.dart';
 import 'package:kumbha_path/src/constant/language_helper.dart';
+import 'package:kumbha_path/src/modules/temple_explorer/temple_navigation_map.dart';
 
 class TempleDetailsScreen extends StatefulWidget {
   const TempleDetailsScreen({super.key});
@@ -136,17 +137,20 @@ class _TempleDetailsScreenState extends State<TempleDetailsScreen> {
 
                     const SizedBox(height: 20),
 
-                    Text(templeName.toString(),   style: theme.textTheme.headlineSmall?.copyWith(
+                    Text(
+                      templeName.toString(),
+                      style: theme.textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: cs.onBackground,
-                      ),),
+                      ),
+                    ),
 
                     // Text(
                     //   LanguageHelper.t('kashi_details_title'),
-                      // style: theme.textTheme.headlineSmall?.copyWith(
-                      //   fontWeight: FontWeight.w700,
-                      //   color: cs.onBackground,
-                      // ),
+                    // style: theme.textTheme.headlineSmall?.copyWith(
+                    //   fontWeight: FontWeight.w700,
+                    //   color: cs.onBackground,
+                    // ),
                     // ),
                     const SizedBox(height: 8),
 
@@ -159,21 +163,23 @@ class _TempleDetailsScreenState extends State<TempleDetailsScreen> {
                         ),
                         const SizedBox(width: 6),
                         Expanded(
-                          child:Text('$templeState,$templeCity',   style: theme.textTheme.bodyMedium?.copyWith(
+                          child: Text(
+                            '$templeState,$templeCity',
+                            style: theme.textTheme.bodyMedium?.copyWith(
                               color: cs.onBackground.withOpacity(0.7),
-                            ),)
+                            ),
+                          ),
                           //  Text(
                           //   LanguageHelper.t('kashi_details_location'),
-                            // style: theme.textTheme.bodyMedium?.copyWith(
-                            //   color: cs.onBackground.withOpacity(0.7),
-                            // ),
+                          // style: theme.textTheme.bodyMedium?.copyWith(
+                          //   color: cs.onBackground.withOpacity(0.7),
+                          // ),
                           // ),
                         ),
                       ],
                     ),
 
                     const SizedBox(height: 20),
-               
 
                     Text(
                       LanguageHelper.t('temple_about_heading'),
@@ -184,22 +190,39 @@ class _TempleDetailsScreenState extends State<TempleDetailsScreen> {
                     ),
 
                     const SizedBox(height: 6),
-                         Text(templeDetail.toString(), 
-                              style: theme.textTheme.bodyMedium?.copyWith(
+                    Text(
+                      templeDetail.toString(),
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: cs.onBackground.withOpacity(0.88),
                       ),
-                      ),
+                    ),
 
                     // Text(
                     //   LanguageHelper.t('kashi_details_about'),
-                      // style: theme.textTheme.bodyMedium?.copyWith(
-                      //   color: cs.onBackground.withOpacity(0.88),
-                      // ),
+                    // style: theme.textTheme.bodyMedium?.copyWith(
+                    //   color: cs.onBackground.withOpacity(0.88),
                     // ),
-
+                    // ),
                     const SizedBox(height: 18),
 
                     _PrimaryActionButton(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (_) => TempleNavigationMap(
+                                  templelat: double.parse(
+                                    state.templeDetail.latitude.toString(),
+                                  ),
+                                  templelng: double.parse(
+                                    state.templeDetail.longitude.toString(),
+                                  ),
+                                  templeName: state.templeDetail.name!,
+                                ),
+                          ),
+                        );
+                      },
                       text: LanguageHelper.t('temple_get_directions_btn'),
                       icon: Icons.navigation_outlined,
                     ),
@@ -226,36 +249,47 @@ class _TempleDetailsScreenState extends State<TempleDetailsScreen> {
 class _PrimaryActionButton extends StatelessWidget {
   final String text;
   final IconData icon;
+  VoidCallback onTap;
 
-  const _PrimaryActionButton({required this.text, required this.icon});
+  _PrimaryActionButton({
+    required this.text,
+    required this.icon,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: buildThemeGradient(context, isPrimary: true),
-        boxShadow: [
-          BoxShadow(
-            color: cs.primary.withOpacity(0.25),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: cs.onPrimary),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: TextStyle(color: cs.onPrimary, fontWeight: FontWeight.w700),
-          ),
-        ],
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: buildThemeGradient(context, isPrimary: true),
+          boxShadow: [
+            BoxShadow(
+              color: cs.primary.withOpacity(0.25),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: cs.onPrimary),
+            const SizedBox(width: 8),
+            Text(
+              text,
+              style: TextStyle(
+                color: cs.onPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
