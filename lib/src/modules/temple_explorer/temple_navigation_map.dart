@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -26,6 +25,7 @@ class TempleNavigationMap extends StatefulWidget {
 }
 
 class _TempleNavigationMapState extends State<TempleNavigationMap> {
+  
   bool _navigationStarted = false;
 final apiKey = ApiConst.googleMapsKey;
   GoogleMapController? _mapController;
@@ -63,7 +63,7 @@ final apiKey = ApiConst.googleMapsKey;
     final url =
         "https://maps.googleapis.com/maps/api/directions/json?"
         "origin=$origin&destination=$destination&mode=$_travelMode&"
-        "&key=AIzaSyDrCtJ_iPEwBypNyXMyAL_Vet0nrnVa9ZQ";
+        "&key=$apiKey";
 
     final response = await http.get(Uri.parse(url));
     final data = json.decode(response.body);
@@ -285,3 +285,6 @@ final apiKey = ApiConst.googleMapsKey;
     );
   }
 }
+
+
+

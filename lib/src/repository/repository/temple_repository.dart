@@ -11,4 +11,20 @@ class TempleRepository extends Repository{
   Future<dynamic>getTempleDetail(jsonData)async{
     return templeApi.getTempleDetail(jsonData);
   }
+
+  
+
+   Future<dynamic>templeNavigate(jsonData)async{
+    return templeApi.templeNavigate(jsonData);
+  }
+
+  
+   Future<dynamic>getFeaturedEvent(jsonData)async{
+    return templeApi.getFeaturedEvent(jsonData);
+  }
+  
+
+   Future<dynamic>getUpcomingTemples(jsonData)async{
+    return templeApi.getUpcomingTemples(jsonData);
+  }
 }

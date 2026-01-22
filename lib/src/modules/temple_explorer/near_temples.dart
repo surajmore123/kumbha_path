@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'package:kumbha_path/main_layout.dart';
 import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_bloc.dart';
@@ -23,8 +24,8 @@ class NearTemples extends StatefulWidget {
 class _NearTemplesState extends State<NearTemples> {
   int selectedRadius = 5;
   bool _locationInitialized = false;
-  late String userLat;
-  late String userLng;
+  double? userLat;
+  double? userLng;
 
   @override
   void didChangeDependencies() {
@@ -36,14 +37,14 @@ class _NearTemplesState extends State<NearTemples> {
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
 
     if (args != null && args['lat'] != null && args['lng'] != null) {
-      userLat = args['lat'];
-      userLng = args['lng'];
+      userLat = double.tryParse(args['lat'].toString());
+      userLng = double.tryParse(args['lng'].toString());
     } else {
       final state = context.read<AppBloc>().state;
 
       if (state.lastUserLat != null && state.lastUserLng != null) {
-        userLat = state.lastUserLat!;
-        userLng = state.lastUserLng!;
+        userLat = double.tryParse(state.lastUserLat!);
+        userLng = double.tryParse(state.lastUserLng!);
       } else {
         _requestLocationAgain();
         return;
@@ -56,19 +57,21 @@ class _NearTemplesState extends State<NearTemples> {
   Future<void> _requestLocationAgain() async {
     final position = await LocationService.getCurrentLocation();
 
-    userLat = position.latitude.toString();
-    userLng = position.longitude.toString();
+    userLat = position.latitude;
+    userLng = position.longitude;
 
     context.read<AppBloc>().add(
       GetNearbyTemplesEvent(
-        latitude: userLat,
-        longitude: userLng,
+        latitude: userLat!.toString(),
+        longitude: userLng!.toString(),
         radius: selectedRadius.toString(),
         limit: 5,
       ),
     );
 
-    _locationInitialized = true;
+    setState(() {
+      _locationInitialized = true;
+    });
   }
 
   void _changeRadius(int radius) {
@@ -76,8 +79,8 @@ class _NearTemplesState extends State<NearTemples> {
 
     context.read<AppBloc>().add(
       GetNearbyTemplesEvent(
-        latitude: userLat,
-        longitude: userLng,
+        latitude: userLat.toString(),
+        longitude: userLng.toString(),
         radius: radius.toString(),
         limit: 5,
       ),
@@ -106,6 +109,26 @@ class _NearTemplesState extends State<NearTemples> {
                   );
                 }).toList(),
           ),
+    );
+  }
+
+  double _zoomForRadius(int radiusKm) {
+    switch (radiusKm) {
+      case 2:
+        return 14.5;
+      case 5:
+        return 13.5;
+      case 10:
+        return 12.5;
+      default:
+        return 13.5;
+    }
+  }
+
+  LatLng _midPoint(LatLng a, LatLng b) {
+    return LatLng(
+      (a.latitude + b.latitude) / 2,
+      (a.longitude + b.longitude) / 2,
     );
   }
 
@@ -170,7 +193,7 @@ class _NearTemplesState extends State<NearTemples> {
           );
           return BlocBuilder<AppBloc, AppState>(
             builder: (context, state) {
-              if (state.status == AppStatus.loading) {
+              if (userLat == null || userLng == null) {
                 return const Center(child: CircularProgressIndicator());
               }
 
@@ -179,6 +202,14 @@ class _NearTemplesState extends State<NearTemples> {
               if (temples.isEmpty) {
                 return const Center(child: Text("No nearby temples found"));
               }
+
+              // nearest temple (already sorted OR compute)
+              final nearestTemple = temples.reduce((a, b) {
+                return (a.distanceKm ?? double.infinity) <
+                        (b.distanceKm ?? double.infinity)
+                    ? a
+                    : b;
+              });
 
               return ListView(
                 padding: EdgeInsets.symmetric(
@@ -204,11 +235,65 @@ class _NearTemplesState extends State<NearTemples> {
                           width: isMobile ? 260 : 300,
                           height: isMobile ? 260 : 300,
                           child: ClipOval(
-                            child: Image.asset(
-                              'assets/images/map_circle.png',
-                              fit: BoxFit.cover, // fills the circle
+                            child: GoogleMap(
+                              initialCameraPosition: CameraPosition(
+                                target: LatLng(
+                                  nearestTemple.latitude!,
+                                  nearestTemple.longitude!,
+                                ),
+                                zoom: _zoomForRadius(selectedRadius),
+                              ),
+
+                              // 🔴 REMOVE user location completely
+                              myLocationEnabled: false,
+                              myLocationButtonEnabled: false,
+
+                              zoomControlsEnabled: false,
+                              compassEnabled: false,
+                              mapToolbarEnabled: false,
+                              scrollGesturesEnabled: false,
+                              zoomGesturesEnabled: false,
+                              rotateGesturesEnabled: false,
+                              tiltGesturesEnabled: false,
+
+                              markers: {
+                                Marker(
+                                  markerId: const MarkerId('nearestTemple'),
+                                  position: LatLng(
+                                    nearestTemple.latitude!,
+                                    nearestTemple.longitude!,
+                                  ),
+                                  icon: BitmapDescriptor.defaultMarkerWithHue(
+                                    BitmapDescriptor.hueOrange,
+                                  ),
+                                  infoWindow: InfoWindow(
+                                    title: nearestTemple.name,
+                                  ),
+                                ),
+                              },
+
+                              circles: {
+                                Circle(
+                                  circleId: const CircleId('radius'),
+                                  center: LatLng(
+                                    nearestTemple.latitude!,
+                                    nearestTemple.longitude!,
+                                  ),
+                                  radius: selectedRadius * 1000, // meters
+                                  fillColor: Colors.orange.withOpacity(0.08),
+                                  strokeColor: Colors.orange.withOpacity(0.35),
+                                  strokeWidth: 1,
+                                ),
+                              },
                             ),
                           ),
+
+                          // ClipOval(
+                          //   child: Image.asset(
+                          //     'assets/images/map_circle.png',
+                          //     fit: BoxFit.cover,
+                          //   ),
+                          // ),
                         ),
                       ),
                     ),
@@ -230,6 +315,8 @@ class _NearTemplesState extends State<NearTemples> {
                           context.read<AppDetailsBloc>().add(
                             GetTempleDetail(
                               templeId: temple.templeId.toString(),
+                              latitude: userLat.toString(),
+                              longitude: userLng.toString(),
                             ),
                           );
                           Navigator.pushNamed(context, '/templeDetail');
@@ -251,8 +338,8 @@ class _NearTemplesState extends State<NearTemples> {
                         onPressed: () {
                           context.read<AppBloc>().add(
                             GetNearbyTemplesEvent(
-                              latitude: userLat,
-                              longitude: userLng,
+                              latitude: userLat.toString(),
+                              longitude: userLng.toString(),
                               radius: selectedRadius.toString(),
                               limit: 5,
                               isLoadMore: true,

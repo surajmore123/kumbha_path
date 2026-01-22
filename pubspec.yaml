@@ -52,6 +52,8 @@ dependencies:
   google_maps_flutter: ^2.14.0
   flutter_polyline_points: ^3.1.0
   url_launcher: ^6.3.2
+  intl: ^0.20.2
+  flutter_date_pickers: ^0.4.3
 
 dev_dependencies:
   flutter_test:
