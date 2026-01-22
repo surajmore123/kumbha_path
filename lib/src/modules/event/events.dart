@@ -1,16 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kumbha_path/main_layout.dart';
+import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_bloc.dart';
+import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_event.dart';
+import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_state.dart';
+
 import 'package:kumbha_path/src/constant/app_color.dart';
 import 'package:kumbha_path/src/constant/app_responsive.dart';
 import 'package:kumbha_path/src/constant/language_helper.dart';
+import 'package:kumbha_path/src/constant/time_formator.dart';
+import 'package:kumbha_path/src/models/featured_model.dart';
+import 'package:kumbha_path/src/models/upcoming_events.dart';
 
-
-class ShahiEvents extends StatelessWidget {
+class ShahiEvents extends StatefulWidget {
   const ShahiEvents({super.key});
 
   @override
+  State<ShahiEvents> createState() => _ShahiEventsState();
+}
+
+class _ShahiEventsState extends State<ShahiEvents> {
+  @override
+  void initState() {
+    super.initState();
+    final bloc = context.read<AppDetailsBloc>();
+    bloc.add(FeaturedEvent());
+    bloc.add(UpcomingEvent());
+
+  }
+
+  @override
   Widget build(BuildContext context) {
-        final theme = Theme.of(context);
+    final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
     final isMobile = context.isMobile;
@@ -35,7 +56,7 @@ class ShahiEvents extends StatelessWidget {
           style: theme.textTheme.titleMedium?.copyWith(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            color: cs.onSurface
+            color: cs.onSurface,
           ),
         ),
         actions: [
@@ -50,7 +71,12 @@ class ShahiEvents extends StatelessWidget {
         builder: (context, lang, _) {
           final titleStyle = theme.textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.w800,
-            fontSize: isMobile ? 22 : isTablet ? 24 : 26,
+            fontSize:
+                isMobile
+                    ? 22
+                    : isTablet
+                    ? 24
+                    : 26,
             color: cs.onBackground,
           );
 
@@ -66,62 +92,146 @@ class ShahiEvents extends StatelessWidget {
             color: cs.onBackground,
           );
 
-          return Container(
-            color: theme.scaffoldBackgroundColor,
-            child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: isMobile ? 16 : isTablet ? 32 : 56,
-                vertical: isMobile ? 16 : 24,
-              ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: isDesktop ? 520 : 480),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ========= MAIN SHAHI SNAN CARD =========
-                    _MainSnanCard(
-                      titleStyle: titleStyle,
-                      bodyStyle: bodyStyle,
+          return BlocConsumer<AppDetailsBloc, AppDetailsState>(
+            listener: (context, state) {},
+            builder: (context, state) {
+              if (state.status == AppDetailsStatus.loading) {
+                // CenterLoader.show(context);
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (state.eventDetailsModel == EventDetailsModel.empty) {
+                return const SizedBox();
+              }
+              return Container(
+                color: theme.scaffoldBackgroundColor,
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal:
+                        isMobile
+                            ? 16
+                            : isTablet
+                            ? 32
+                            : 56,
+                    vertical: isMobile ? 16 : 24,
+                  ),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: isDesktop ? 520 : 480,
                     ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ========= MAIN SHAHI SNAN CARD =========
+                        _MainSnanCard(
+                          event: state.eventDetailsModel,
+                          titleStyle: titleStyle,
+                          bodyStyle: bodyStyle,
+                        ),
 
-                    const SizedBox(height: 24),
+                        const SizedBox(height: 10),
 
-                    // ========= OTHER KEY EVENTS HEADER =========
-                    Text(
-                      LanguageHelper.t('events_other_key_events'),
-                      style: sectionTitleStyle,
+                        // ========= OTHER KEY EVENTS HEADER =========
+                        // Text(
+                        //   LanguageHelper.t('events_other_key_events'),
+                        //   style: sectionTitleStyle,
+                        // // ),
+                        // const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+  Text(
+                              LanguageHelper.t('events_other_key_events'),
+                              style: sectionTitleStyle,
+                            ),
+
+                            IconButton(
+                              onPressed: () async {
+                                final pickedDate = await showDatePicker(
+                                  context: context,
+                                  initialDate: DateTime.now(),
+                                  firstDate: DateTime.now().subtract(
+                                    const Duration(days: 1),
+                                  ),
+                                  lastDate: DateTime.now().add(
+                                    const Duration(days: 365),
+                                  ),
+                                );
+                                if (pickedDate != null) {
+                                  final formattedDate =
+                                      pickedDate
+                                          .toIso8601String()
+                                          .split('T')
+                                          .first;
+
+                                  context.read<AppDetailsBloc>().add(
+                                    UpcomingEvent(formattedDate),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.calendar_month_outlined),
+                            ),
+                              ],
+                            ),
+                          
+
+                            IconButton(
+                              icon: const Icon(Icons.refresh),
+                              onPressed: () {
+                                context.read<AppDetailsBloc>().add(
+                                  UpcomingEvent(),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+
+                        // ========= LIST OF OTHER EVENTS =========
+                        if (state.upcomingEvents.isNotEmpty) ...[
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: state.upcomingEvents.length,
+                            separatorBuilder:
+                                (_, __) => const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              return OtherEventRow(
+                                event: state.upcomingEvents[index],
+                              );
+                            },
+                          ),
+                        ],
+
+                        // _OtherEventRow(
+                        //   icon: Icons.wb_sunny_outlined,
+                        //   iconBgColor: cs.primaryContainer.withOpacity(0.14),
+                        //   titleKey: 'event_ganga_aarti_title',
+                        //   descriptionKey: 'event_ganga_aarti_description',
+                        // ),
+                        // const SizedBox(height: 12),
+
+                        // _OtherEventRow(
+                        //   icon: Icons.groups_2_outlined,
+                        //   iconBgColor: cs.primaryContainer.withOpacity(0.14),
+                        //   titleKey: 'event_sant_samagam_title',
+                        //   descriptionKey: 'event_sant_samagam_description',
+                        // ),
+                        // const SizedBox(height: 12),
+
+                        // _OtherEventRow(
+                        //   icon: Icons.music_note_outlined,
+                        //   iconBgColor: cs.primaryContainer.withOpacity(0.14),
+                        //   titleKey: 'event_cultural_evening_title',
+                        //   descriptionKey: 'event_cultural_evening_description',
+                        // ),
+                        const SizedBox(height: 24),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-
-                    // ========= LIST OF OTHER EVENTS =========
-                    _OtherEventRow(
-                      icon: Icons.wb_sunny_outlined,
-                      iconBgColor: cs.primaryContainer.withOpacity(0.14),
-                      titleKey: 'event_ganga_aarti_title',
-                      descriptionKey: 'event_ganga_aarti_description',
-                    ),
-                    const SizedBox(height: 12),
-
-                    _OtherEventRow(
-                      icon: Icons.groups_2_outlined,
-                      iconBgColor: cs.primaryContainer.withOpacity(0.14),
-                      titleKey: 'event_sant_samagam_title',
-                      descriptionKey: 'event_sant_samagam_description',
-                    ),
-                    const SizedBox(height: 12),
-
-                    _OtherEventRow(
-                      icon: Icons.music_note_outlined,
-                      iconBgColor: cs.primaryContainer.withOpacity(0.14),
-                      titleKey: 'event_cultural_evening_title',
-                      descriptionKey: 'event_cultural_evening_description',
-                    ),
-
-                    const SizedBox(height: 24),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           );
         },
       ),
@@ -129,27 +239,81 @@ class ShahiEvents extends StatelessWidget {
   }
 }
 
-// ================= MAIN SNAN CARD =================
+class OtherEventRow extends StatelessWidget {
+  final EventSummaryModel event;
+
+  const OtherEventRow({super.key, required this.event});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isMobile = context.isMobile;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: cs.primaryContainer.withOpacity(0.14),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(Icons.event_outlined, color: cs.primary, size: 24),
+        ),
+        const SizedBox(width: 12),
+
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                event.eventName ?? "",
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: isMobile ? 15 : 16,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                event.shortDescription ?? "",
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontSize: isMobile ? 13 : 14,
+                  color: cs.onBackground.withOpacity(0.72),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        Icon(Icons.event_available_outlined, color: cs.primary, size: 24),
+      ],
+    );
+  }
+}
 
 class _MainSnanCard extends StatelessWidget {
   final TextStyle? titleStyle;
   final TextStyle? bodyStyle;
+  final EventDetailsModel event;
 
   const _MainSnanCard({
     required this.titleStyle,
     required this.bodyStyle,
+    required this.event,
   });
 
   @override
   Widget build(BuildContext context) {
-   final cs = Theme.of(context).colorScheme;
+    final cs = Theme.of(context).colorScheme;
 
     final applyGradient = true;
 
     return Container(
-      padding:  EdgeInsets.all(18),
+      padding: EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: applyGradient ? buildThemeGradient(context, isPrimary: true) : null,
+        gradient:
+            applyGradient ? buildThemeGradient(context, isPrimary: true) : null,
         // gradient: LinearGradient(
         //   colors: [
         //     cs.primary,
@@ -170,28 +334,36 @@ class _MainSnanCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Date pill
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            //padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
               color: cs.onPrimary.withOpacity(0.08),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              LanguageHelper.t('shahi_snan_timing'),
+              '${formatEventDate(event.eventDate)} • '
+              '${formatEventTimeRange(startTime: event.startTime, endTime: event.endTime)}',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: cs.onPrimary,
-                  ),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: cs.onPrimary,
+              ),
             ),
           ),
 
           const SizedBox(height: 12),
 
+          // Text(
+          //   LanguageHelper.t('shahi_snan_title'),
+          //   style: titleStyle?.copyWith(color: cs.onPrimary),
+          // ),
           Text(
-            LanguageHelper.t('shahi_snan_title'),
-            style: titleStyle?.copyWith(color: cs.onPrimary),
+            event.eventName.toString(),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: cs.onPrimary,
+            ),
           ),
 
           const SizedBox(height: 8),
@@ -202,7 +374,8 @@ class _MainSnanCard extends StatelessWidget {
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
-                  LanguageHelper.t('shahi_snan_location'),
+                  event.locationName.toString(),
+                  // LanguageHelper.t('shahi_snan_location'),
                   style: bodyStyle?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: cs.onPrimary,
@@ -215,7 +388,8 @@ class _MainSnanCard extends StatelessWidget {
           const SizedBox(height: 10),
 
           Text(
-            LanguageHelper.t('shahi_snan_description'),
+            // LanguageHelper.t('shahi_snan_description'),
+            event.shortDescription.toString(),
             style: bodyStyle?.copyWith(color: cs.onPrimary.withOpacity(0.92)),
           ),
 
@@ -229,9 +403,15 @@ class _MainSnanCard extends StatelessWidget {
                 // TODO: set reminder
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  gradient: applyGradient ? buildThemeGradient(context, isPrimary: true) : null,
+                  gradient:
+                      applyGradient
+                          ? buildThemeGradient(context, isPrimary: true)
+                          : null,
                   borderRadius: BorderRadius.circular(22),
                   boxShadow: [
                     BoxShadow(
@@ -244,7 +424,11 @@ class _MainSnanCard extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.notifications_active_outlined, color: cs.onSecondary, size: 18),
+                    Icon(
+                      Icons.notifications_active_outlined,
+                      color: cs.onSecondary,
+                      size: 18,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       LanguageHelper.t('events_remind_me'),
@@ -286,15 +470,15 @@ class _OtherEventRow extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     final titleStyle = Theme.of(context).textTheme.bodyLarge?.copyWith(
-          fontWeight: FontWeight.w700,
-          fontSize: isMobile ? 15 : 16,
-          color: cs.onBackground,
-        );
+      fontWeight: FontWeight.w700,
+      fontSize: isMobile ? 15 : 16,
+      color: cs.onBackground,
+    );
 
     final descStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
-          fontSize: isMobile ? 13 : 14,
-          color: cs.onBackground.withOpacity(0.72),
-        );
+      fontSize: isMobile ? 13 : 14,
+      color: cs.onBackground.withOpacity(0.72),
+    );
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -307,11 +491,7 @@ class _OtherEventRow extends StatelessWidget {
             color: iconBgColor,
             borderRadius: BorderRadius.circular(14),
           ),
-          child: Icon(
-            icon,
-            color: cs.primary,
-            size: 24,
-          ),
+          child: Icon(icon, color: cs.primary, size: 24),
         ),
         const SizedBox(width: 12),
 
@@ -320,15 +500,9 @@ class _OtherEventRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                LanguageHelper.t(titleKey),
-                style: titleStyle,
-              ),
+              Text(LanguageHelper.t(titleKey), style: titleStyle),
               const SizedBox(height: 4),
-              Text(
-                LanguageHelper.t(descriptionKey),
-                style: descStyle,
-              ),
+              Text(LanguageHelper.t(descriptionKey), style: descStyle),
             ],
           ),
         ),
@@ -336,11 +510,7 @@ class _OtherEventRow extends StatelessWidget {
         const SizedBox(width: 12),
 
         // Calendar icon
-        Icon(
-          Icons.event_available_outlined,
-          color: cs.primary,
-          size: 24,
-        ),
+        Icon(Icons.event_available_outlined, color: cs.primary, size: 24),
       ],
     );
   }

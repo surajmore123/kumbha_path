@@ -1,14 +1,38 @@
 import 'package:equatable/equatable.dart';
 
-class AppDetailsEvent extends Equatable{
+class AppDetailsEvent extends Equatable {
   @override
   List<Object?> get props => [];
-  
 }
 
-
-class GetTempleDetail extends AppDetailsEvent{
+class GetTempleDetail extends AppDetailsEvent {
   final String templeId;
+   final String latitude;
+  final String longitude;
 
-  GetTempleDetail({required this.templeId});
+  GetTempleDetail({required this.templeId, required this.latitude, required this.longitude});
+}
+
+class TempleNavigate extends AppDetailsEvent {
+  final String templeId;
+  final String latitude;
+  final String longitude;
+
+  TempleNavigate({
+    required this.templeId,
+    required this.latitude,
+    required this.longitude,
+  });
+}
+
+class FeaturedEvent extends AppDetailsEvent{
+
+}
+
+class UpcomingEvent extends AppDetailsEvent{
+
+  final  String? date;
+
+   UpcomingEvent([this.date = ""]);
+  
 }

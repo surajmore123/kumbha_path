@@ -28,4 +28,46 @@ class TempleApi extends Api {
       print('error');
     }
   }
+
+  Future<dynamic> templeNavigate(jsonData) async {
+    try {
+      final response = await requestPost(
+        path: 'api/temples/navigate/${jsonData['temple_id']}/',
+        parameters: jsonData,
+      );
+      print('temple navigate response $response');
+      return response;
+    } catch (e, _) {
+      print(e);
+      print('error');
+    }
+  }
+
+  Future<dynamic> getFeaturedEvent(jsonData) async {
+    try {
+      final response = await requestGet(
+        path: 'api/events/featured/',
+        parameters: jsonData,
+      );
+      print('featured temple response $response');
+      return response;
+    } catch (e, _) {
+      print(e);
+      print('error');
+    }
+  }
+
+  Future<dynamic> getUpcomingTemples(Map<String, String> jsonData) async {
+    try {
+      final response = await requestGet(
+        path: 'api/events/upcoming/',
+        parameters: jsonData,
+      );
+      print("upcomming events response $response");
+      return response;
+    } catch (e, _) {
+      print(e);
+      print('error');
+    }
+  }
 }
