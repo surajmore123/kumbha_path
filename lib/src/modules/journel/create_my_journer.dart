@@ -4,7 +4,6 @@ import 'package:kumbha_path/src/constant/app_color.dart';
 import 'package:kumbha_path/src/constant/app_responsive.dart';
 import 'package:kumbha_path/src/constant/language_helper.dart';
 
-
 // class NewJournalEntryScreen extends StatefulWidget {
 //   const NewJournalEntryScreen({super.key});
 
@@ -384,8 +383,6 @@ import 'package:kumbha_path/src/constant/language_helper.dart';
 //   }
 // }
 
-
-
 class NewJournalEntryScreen extends StatefulWidget {
   const NewJournalEntryScreen({super.key});
 
@@ -458,20 +455,26 @@ class _NewJournalEntryScreenState extends State<NewJournalEntryScreen> {
             color: theme.scaffoldBackgroundColor,
             child: SingleChildScrollView(
               padding: EdgeInsets.symmetric(
-                horizontal: isMobile ? 16 : isTablet ? 32 : 56,
+                horizontal:
+                    isMobile
+                        ? 16
+                        : isTablet
+                        ? 32
+                        : 56,
                 vertical: isMobile ? 16 : 24,
               ),
 
               child: ConstrainedBox(
-                constraints:
-                    BoxConstraints(maxWidth: isDesktop ? 520 : 480),
+                constraints: BoxConstraints(maxWidth: isDesktop ? 520 : 480),
 
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
                     // ---------------- TITLE ----------------
-                    Text(LanguageHelper.t('journal_field_title'), style: labelStyle),
+                    Text(
+                      LanguageHelper.t('journal_field_title'),
+                      style: labelStyle,
+                    ),
                     const SizedBox(height: 8),
 
                     TextField(
@@ -481,20 +484,115 @@ class _NewJournalEntryScreenState extends State<NewJournalEntryScreen> {
                         hintStyle: hintStyle,
                         filled: true,
                         fillColor: cs.surface,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(28),
-                          borderSide: BorderSide(color: cs.outline.withOpacity(0.2)),
+                          borderSide: BorderSide(
+                            color: cs.outline.withOpacity(0.2),
+                          ),
                         ),
                       ),
                     ),
 
                     const SizedBox(height: 18),
+                    // Icons.add_circle_outline : Icons.auto_awesome,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('AI Asked...', style: labelStyle),
+
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.auto_awesome,
+                              color: Colors.deepOrange,
+                              size: 15,
+                            ),
+                            SizedBox(width: 5),
+                            Text(
+                              'AI Prompt Activated',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    SizedBox(
+                      height: 80,
+                      child: TextField(
+                        controller: _notesController,
+                        maxLines: null,
+                        expands: true,
+                        textAlignVertical: TextAlignVertical.top,
+                        decoration: InputDecoration(
+                          hintText: 'AI Thought.....',
+                          // hintText: LanguageHelper.t(
+                          //   'journal_field_notes_hint',
+                          // ),
+                          hintStyle: hintStyle,
+                          filled: true,
+                          fillColor: cs.surface,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide(
+                              color: cs.outline.withOpacity(0.2),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    Text('Your Thoughts', style: labelStyle),
+                    const SizedBox(height: 8),
+
+                    SizedBox(
+                      height: 80,
+                      child: TextField(
+                        controller: _notesController,
+                        maxLines: null,
+                        expands: true,
+                        textAlignVertical: TextAlignVertical.top,
+                        decoration: InputDecoration(
+                          hintText: 'Answer.....',
+                          // hintText: LanguageHelper.t(
+                          //   'journal_field_notes_hint',
+                          // ),
+                          hintStyle: hintStyle,
+                          filled: true,
+                          fillColor: cs.surface,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide(
+                              color: cs.outline.withOpacity(0.2),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
 
                     // ---------------- ADD PHOTO ----------------
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 20,
+                      ),
                       decoration: BoxDecoration(
                         color: cs.surface,
                         borderRadius: BorderRadius.circular(24),
@@ -527,7 +625,10 @@ class _NewJournalEntryScreenState extends State<NewJournalEntryScreen> {
                               // TODO: open image picker
                             },
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 22,
+                                vertical: 10,
+                              ),
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(24),
                                 gradient: primaryGradient,
@@ -542,10 +643,16 @@ class _NewJournalEntryScreenState extends State<NewJournalEntryScreen> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.upload_outlined, size: 18, color: cs.onPrimary),
+                                  Icon(
+                                    Icons.upload_outlined,
+                                    size: 18,
+                                    color: cs.onPrimary,
+                                  ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    LanguageHelper.t('journal_add_photo_button'),
+                                    LanguageHelper.t(
+                                      'journal_add_photo_button',
+                                    ),
                                     style: TextStyle(
                                       color: cs.onPrimary,
                                       fontWeight: FontWeight.w700,
@@ -563,7 +670,10 @@ class _NewJournalEntryScreenState extends State<NewJournalEntryScreen> {
                     const SizedBox(height: 20),
 
                     // ---------------- NOTES ----------------
-                    Text(LanguageHelper.t('journal_field_notes'), style: labelStyle),
+                    Text(
+                      LanguageHelper.t('journal_field_notes'),
+                      style: labelStyle,
+                    ),
                     const SizedBox(height: 8),
 
                     SizedBox(
@@ -574,14 +684,21 @@ class _NewJournalEntryScreenState extends State<NewJournalEntryScreen> {
                         expands: true,
                         textAlignVertical: TextAlignVertical.top,
                         decoration: InputDecoration(
-                          hintText: LanguageHelper.t('journal_field_notes_hint'),
+                          hintText: LanguageHelper.t(
+                            'journal_field_notes_hint',
+                          ),
                           hintStyle: hintStyle,
                           filled: true,
                           fillColor: cs.surface,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(24),
-                            borderSide: BorderSide(color: cs.outline.withOpacity(0.2)),
+                            borderSide: BorderSide(
+                              color: cs.outline.withOpacity(0.2),
+                            ),
                           ),
                         ),
                       ),
@@ -589,10 +706,12 @@ class _NewJournalEntryScreenState extends State<NewJournalEntryScreen> {
 
                     const SizedBox(height: 20),
 
-                    // ---------------- FEELING EMOJIS ----------------
                     Text(
                       LanguageHelper.t('journal_how_feeling'),
-                      style: labelStyle?.copyWith(fontSize: 15, fontWeight: FontWeight.w700),
+                      style: labelStyle?.copyWith(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: 10),
 
@@ -605,27 +724,34 @@ class _NewJournalEntryScreenState extends State<NewJournalEntryScreen> {
                           final isSelected = _selectedMoodIndex == index;
 
                           return GestureDetector(
-                            onTap: () => setState(() => _selectedMoodIndex = index),
+                            onTap:
+                                () =>
+                                    setState(() => _selectedMoodIndex = index),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 150),
                               width: isSelected ? 64 : 56,
                               height: isSelected ? 64 : 56,
                               decoration: BoxDecoration(
-                                color: isSelected ? cs.surfaceVariant : cs.surface,
+                                color:
+                                    isSelected ? cs.surfaceVariant : cs.surface,
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: isSelected ? cs.primary : cs.outline.withOpacity(0.3),
+                                  color:
+                                      isSelected
+                                          ? cs.primary
+                                          : cs.outline.withOpacity(0.3),
                                   width: isSelected ? 2 : 1,
                                 ),
-                                boxShadow: isSelected
-                                    ? [
-                                        BoxShadow(
-                                          color: cs.primary.withOpacity(0.25),
-                                          blurRadius: 6,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ]
-                                    : null,
+                                boxShadow:
+                                    isSelected
+                                        ? [
+                                          BoxShadow(
+                                            color: cs.primary.withOpacity(0.25),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ]
+                                        : null,
                               ),
                               child: Center(
                                 child: Text(
@@ -719,4 +845,3 @@ class _NewJournalEntryScreenState extends State<NewJournalEntryScreen> {
     );
   }
 }
-

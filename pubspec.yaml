@@ -54,6 +54,8 @@ dependencies:
   url_launcher: ^6.3.2
   intl: ^0.20.2
   flutter_date_pickers: ^0.4.3
+  firebase_core: ^4.4.0
+  firebase_messaging: ^16.1.1
 
 dev_dependencies:
   flutter_test:

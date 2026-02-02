@@ -70,4 +70,18 @@ class TempleApi extends Api {
       print('error');
     }
   }
+
+   Future<dynamic> eventNotification(jsonData) async {
+    try {
+      final response = await requestPost(
+        path: 'api/events/${jsonData['event_id']}/reminder-toggle/',
+        parameters: jsonData,
+      );
+      print('notification reminder response $response');
+      return response;
+    } catch (e, _) {
+      print(e);
+      print('error');
+    }
+  }
 }

@@ -39,3 +39,10 @@ class ProfileGetEvent extends UserEvent {
 
   ProfileGetEvent({required this.status});
 }
+
+class FcmRegisterEvent extends UserEvent {
+  final String fcmToken;
+  final String deviceType;
+
+  FcmRegisterEvent({required this.fcmToken, required this.deviceType});
+}

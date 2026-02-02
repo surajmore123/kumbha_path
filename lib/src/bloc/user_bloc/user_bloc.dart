@@ -14,6 +14,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     on<UserProfileCreateEvent>(_onUserProfileCreate);
     on<ImageAddEvent>(_onUserProfileImageUpload);
     on<ProfileGetEvent>(_ongetUserProfile);
+    on<FcmRegisterEvent>(_onregisterFcm);
   }
 
   FutureOr<void> _onUserCreate(
@@ -54,6 +55,11 @@ class UserBloc extends Bloc<UserEvent, UserState> {
       final token = result['data'];
       await storage.write(key: "access_token", value: token['access_token']);
       await storage.write(key: "session_id", value: token['session_id']);
+      final fcmToken = await userAuthentication.getFcmToken();
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        add(FcmRegisterEvent(fcmToken: fcmToken, deviceType: "ANDROID"));
+      }
+
       print('tokeeeeennn ${token['access_token']}');
       emit(state.copyWith(status: UserStatus.success));
     } else {
@@ -61,38 +67,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     }
   }
 
-  // FutureOr<void> _onUserProfileCreate(
-  //   UserProfileCreateEvent event,
-  //   Emitter<UserState> emit,
-  // ) async {
-  //   emit(state.copyWith(status: UserStatus.sending));
-  //   final token = await storage.read(key: 'access_token');
 
-  //   Map<String, Object> jsonData = {
-  //     "access_token": token.toString(),
-  //     "email": event.email,
-  //     "full_name": event.fullName,
-  //   };
-
-  //   print('user profile data:$jsonData');
-
-  //   dynamic result = await userRepository.userProfileCreate(jsonData);
-  //   print('result of  user profile create :$result');
-
-  //   if (result != null && result['status'] == "success") {
-  //     // 👇 Parse updated user data from API
-  //     final updatedUser = UserData.fromJson(result['data'] ?? {});
-
-  //     emit(
-  //       state.copyWith(
-  //         status: UserStatus.success,
-  //         profileData: updatedUser, // 👈 important
-  //       ),
-  //     );
-  //   } else {
-  //     emit(state.copyWith(status: UserStatus.failure));
-  //   }
-  // }
 
   FutureOr<void> _onUserProfileCreate(
     UserProfileCreateEvent event,
@@ -151,7 +126,30 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     print('result of get user profile :$result');
     if (result['status'] == "success") {
       UserData userData = UserData.fromJson(result['data']);
-      emit(state.copyWith(status: UserStatus.profileLoaded, profileData: userData));
+      emit(
+        state.copyWith(status: UserStatus.profileLoaded, profileData: userData),
+      );
+    } else {
+      emit(state.copyWith(status: UserStatus.failure));
+    }
+  }
+
+  FutureOr<void> _onregisterFcm(
+    FcmRegisterEvent event,
+    Emitter<UserState> emit,
+  ) async {
+    emit(state.copyWith(status: UserStatus.sending));
+    final token = await storage.read(key: 'access_token');
+    Map<String, Object> jsonData = {
+      "access_token": token.toString(),
+      "token": event.fcmToken,
+      "device_type": event.deviceType,
+    };
+    print('user fcm data:$jsonData');
+    dynamic result = await userRepository.registerFcm(jsonData);
+    print('result of  user fcm:$result');
+    if (result['status'] == "success") {
+      emit(state.copyWith(status: UserStatus.success));
     } else {
       emit(state.copyWith(status: UserStatus.failure));
     }

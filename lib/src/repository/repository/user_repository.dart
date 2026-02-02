@@ -1,7 +1,6 @@
 import 'package:kumbha_path/src/network/api/user_api.dart';
 import 'package:kumbha_path/src/repository/repository/repository.dart';
 
-
 class UserRepository extends Repository {
   final UserApi userApi = UserApi();
 
@@ -22,7 +21,11 @@ class UserRepository extends Repository {
     return userApi.userProfileImageUpload(jsonData);
   }
 
-   Future<dynamic> getUserProfile(jsonData) async {
+  Future<dynamic> getUserProfile(jsonData) async {
     return userApi.getUserProfile(jsonData);
+  }
+
+  Future<dynamic> registerFcm(jsonData) async {
+    return userApi.registerFcm(jsonData);
   }
 }
