@@ -13,4 +13,18 @@ class UserAuthentication extends ChangeNotifier {
   }
 
   bool get loggedIn => isLogin;
+
+    // ---------------- FCM ----------------
+
+  Future<void> saveFcmToken(String token) async {
+    await storage.write(key: 'fcm_token', value: token);
+  }
+
+  Future<String?> getFcmToken() async {
+    return await storage.read(key: 'fcm_token');
+  }
+
+  Future<void> clearFcmToken() async {
+    await storage.delete(key: 'fcm_token');
+  }
 }

@@ -7,10 +7,14 @@ class AppDetailsEvent extends Equatable {
 
 class GetTempleDetail extends AppDetailsEvent {
   final String templeId;
-   final String latitude;
+  final String latitude;
   final String longitude;
 
-  GetTempleDetail({required this.templeId, required this.latitude, required this.longitude});
+  GetTempleDetail({
+    required this.templeId,
+    required this.latitude,
+    required this.longitude,
+  });
 }
 
 class TempleNavigate extends AppDetailsEvent {
@@ -25,14 +29,17 @@ class TempleNavigate extends AppDetailsEvent {
   });
 }
 
-class FeaturedEvent extends AppDetailsEvent{
+class FeaturedEvent extends AppDetailsEvent {}
 
+class UpcomingEvent extends AppDetailsEvent {
+  final String? date;
+
+  UpcomingEvent([this.date = ""]);
 }
 
-class UpcomingEvent extends AppDetailsEvent{
+class ReminderToggleEvent extends AppDetailsEvent {
+  final String action;
+  final String eventId;
 
-  final  String? date;
-
-   UpcomingEvent([this.date = ""]);
-  
+  ReminderToggleEvent({required this.action, required this.eventId});
 }

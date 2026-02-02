@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "978857171526",
+    "project_id": "kumbha-path",
+    "storage_bucket": "kumbha-path.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:978857171526:android:d9cd782556d02d54a6c847",
+        "android_client_info": {
+          "package_name": "com.example.kumbha_path"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBqDhFHDb5K0hcCyN5jUpIvwqztWdXfhrY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

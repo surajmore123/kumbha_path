@@ -70,4 +70,18 @@ class UserApi extends Api {
       print('error');
     }
   }
+
+  Future<dynamic> registerFcm(jsonData) async {
+    try {
+      final fcmresult = await requestPost(
+        path: '/api/auth/fcm/register/',
+        parameters: jsonData,
+      );
+      print('response from fcm registered $fcmresult');
+      return fcmresult;
+    } catch (e, _) {
+      print(e);
+      print('error');
+    }
+  }
 }

@@ -14,6 +14,7 @@ class AppDetailsBloc extends Bloc<AppDetailsEvent, AppDetailsState> {
     on<TempleNavigate>(_onTempleNavigate);
     on<FeaturedEvent>(_onGetFeaturedEvent);
     on<UpcomingEvent>(_onGetUpcomingEvent);
+    on<ReminderToggleEvent>(_onSetreminderEvent);
   }
 
   FutureOr<void> _onGetTempleDetail(
@@ -123,6 +124,34 @@ class AppDetailsBloc extends Bloc<AppDetailsEvent, AppDetailsState> {
       );
     } else {
       emit(state.copyWith(status: AppDetailsStatus.failed, upcomingEvents: []));
+    }
+  }
+
+  FutureOr<void> _onSetreminderEvent(
+    ReminderToggleEvent event,
+    Emitter<AppDetailsState> emit,
+  ) async {
+    emit(state.copyWith(status: AppDetailsStatus.sending));
+    final token = await storage.read(key: 'access_token');
+    Map<String, Object> jsonData = {
+      "access_token": token.toString(),
+      "event_id": event.eventId.toString(),
+      "action": event.action.toString(),
+    };
+
+    final result = await templeRepository.eventNotification(jsonData);
+    if (result != null && result['status'] == 'success') {
+      final updatedMap = Map<String, bool>.from(state.reminderStatus);
+updatedMap[event.eventId] = event.action == "ENABLE";
+      emit(
+        state.copyWith(
+          status: AppDetailsStatus.success,
+          reminderMsg: result['message'],
+          reminderStatus: updatedMap,
+        ),
+      );
+    } else {
+      emit(state.copyWith(status: AppDetailsStatus.failed));
     }
   }
 }

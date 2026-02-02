@@ -26,7 +26,6 @@ class _ShahiEventsState extends State<ShahiEvents> {
     final bloc = context.read<AppDetailsBloc>();
     bloc.add(FeaturedEvent());
     bloc.add(UpcomingEvent());
-
   }
 
   @override
@@ -121,7 +120,6 @@ class _ShahiEventsState extends State<ShahiEvents> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ========= MAIN SHAHI SNAN CARD =========
                         _MainSnanCard(
                           event: state.eventDetailsModel,
                           titleStyle: titleStyle,
@@ -130,51 +128,46 @@ class _ShahiEventsState extends State<ShahiEvents> {
 
                         const SizedBox(height: 10),
 
-                        // ========= OTHER KEY EVENTS HEADER =========
-                        // Text(
-                        //   LanguageHelper.t('events_other_key_events'),
-                        //   style: sectionTitleStyle,
-                        // // ),
-                        // const SizedBox(height: 16),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Row(
                               children: [
-  Text(
-                              LanguageHelper.t('events_other_key_events'),
-                              style: sectionTitleStyle,
-                            ),
+                                Text(
+                                  LanguageHelper.t('events_other_key_events'),
+                                  style: sectionTitleStyle,
+                                ),
 
-                            IconButton(
-                              onPressed: () async {
-                                final pickedDate = await showDatePicker(
-                                  context: context,
-                                  initialDate: DateTime.now(),
-                                  firstDate: DateTime.now().subtract(
-                                    const Duration(days: 1),
-                                  ),
-                                  lastDate: DateTime.now().add(
-                                    const Duration(days: 365),
-                                  ),
-                                );
-                                if (pickedDate != null) {
-                                  final formattedDate =
-                                      pickedDate
-                                          .toIso8601String()
-                                          .split('T')
-                                          .first;
+                                IconButton(
+                                  onPressed: () async {
+                                    final pickedDate = await showDatePicker(
+                                      context: context,
+                                      initialDate: DateTime.now(),
+                                      firstDate: DateTime.now().subtract(
+                                        const Duration(days: 1),
+                                      ),
+                                      lastDate: DateTime.now().add(
+                                        const Duration(days: 365),
+                                      ),
+                                    );
+                                    if (pickedDate != null) {
+                                      final formattedDate =
+                                          pickedDate
+                                              .toIso8601String()
+                                              .split('T')
+                                              .first;
 
-                                  context.read<AppDetailsBloc>().add(
-                                    UpcomingEvent(formattedDate),
-                                  );
-                                }
-                              },
-                              icon: const Icon(Icons.calendar_month_outlined),
-                            ),
+                                      context.read<AppDetailsBloc>().add(
+                                        UpcomingEvent(formattedDate),
+                                      );
+                                    }
+                                  },
+                                  icon: const Icon(
+                                    Icons.calendar_month_outlined,
+                                  ),
+                                ),
                               ],
                             ),
-                          
 
                             IconButton(
                               icon: const Icon(Icons.refresh),
@@ -249,45 +242,69 @@ class OtherEventRow extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final isMobile = context.isMobile;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: cs.primaryContainer.withOpacity(0.14),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Icon(Icons.event_outlined, color: cs.primary, size: 24),
-        ),
-        const SizedBox(width: 12),
-
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                event.eventName ?? "",
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: isMobile ? 15 : 16,
-                ),
+    return BlocBuilder<AppDetailsBloc, AppDetailsState>(
+      builder: (context, state) {
+        final isEnabled = state.reminderStatus[event.eventId] ?? false;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: cs.primaryContainer.withOpacity(0.14),
+                borderRadius: BorderRadius.circular(14),
               ),
-              const SizedBox(height: 4),
-              Text(
-                event.shortDescription ?? "",
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontSize: isMobile ? 13 : 14,
-                  color: cs.onBackground.withOpacity(0.72),
-                ),
-              ),
-            ],
-          ),
-        ),
+              child: Icon(Icons.event_outlined, color: cs.primary, size: 24),
+            ),
+            const SizedBox(width: 12),
 
-        Icon(Icons.event_available_outlined, color: cs.primary, size: 24),
-      ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    event.eventName ?? "",
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontSize: isMobile ? 15 : 16,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    event.shortDescription ?? "",
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontSize: isMobile ? 13 : 14,
+                      color: cs.onBackground.withOpacity(0.72),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            GestureDetector(
+              onTap: () {
+                final bloc = context.read<AppDetailsBloc>();
+                bloc.add(
+                  ReminderToggleEvent(
+                    action: isEnabled ? "DISABLE" : "ENABLE",
+
+                    eventId: event.eventId!,
+                  ),
+                );
+              },
+              child: Icon(
+                isEnabled
+                    ? Icons.notifications_off_outlined
+                    : Icons.notifications_active_outlined,
+
+                color: cs.primary,
+                size: 24,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -395,123 +412,72 @@ class _MainSnanCard extends StatelessWidget {
 
           const SizedBox(height: 16),
 
-          // Remind Me button aligned to right
-          Align(
-            alignment: Alignment.centerRight,
-            child: GestureDetector(
-              onTap: () {
-                // TODO: set reminder
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  gradient:
-                      applyGradient
-                          ? buildThemeGradient(context, isPrimary: true)
-                          : null,
-                  borderRadius: BorderRadius.circular(22),
-                  boxShadow: [
-                    BoxShadow(
-                      color: cs.secondary.withOpacity(0.18),
-                      blurRadius: 6,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.notifications_active_outlined,
-                      color: cs.onSecondary,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      LanguageHelper.t('events_remind_me'),
-                      style: TextStyle(
-                        color: cs.onPrimary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
+          BlocBuilder<AppDetailsBloc, AppDetailsState>(
+            builder: (context, state) {
+              final isEnabled = state.reminderStatus[event.eventId] ?? false;
+              return Align(
+                alignment: Alignment.centerRight,
+                child: GestureDetector(
+                  onTap: () {
+                    final bloc = context.read<AppDetailsBloc>();
+                    bloc.add(
+                      ReminderToggleEvent(
+                        action: isEnabled ? "DISABLE" : "ENABLE",
+
+                        eventId: event.eventId!,
                       ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
                     ),
-                  ],
+                    decoration: BoxDecoration(
+                      gradient:
+                          applyGradient
+                              ? buildThemeGradient(context, isPrimary: true)
+                              : null,
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: [
+                        BoxShadow(
+                          color: cs.secondary.withOpacity(0.18),
+                          blurRadius: 6,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isEnabled
+                              ? Icons.notifications_off_outlined
+                              : Icons.notifications_active_outlined,
+
+                          color: cs.onSecondary,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          isEnabled
+                              ? 'Disable Event'
+                              : LanguageHelper.t('events_remind_me'),
+                          style: TextStyle(
+                            color: cs.onPrimary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ],
       ),
-    );
-  }
-}
-
-// ================= OTHER EVENTS ROW =================
-
-class _OtherEventRow extends StatelessWidget {
-  final IconData icon;
-  final Color iconBgColor;
-  final String titleKey;
-  final String descriptionKey;
-
-  const _OtherEventRow({
-    required this.icon,
-    required this.iconBgColor,
-    required this.titleKey,
-    required this.descriptionKey,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isMobile = context.isMobile;
-    final cs = Theme.of(context).colorScheme;
-
-    final titleStyle = Theme.of(context).textTheme.bodyLarge?.copyWith(
-      fontWeight: FontWeight.w700,
-      fontSize: isMobile ? 15 : 16,
-      color: cs.onBackground,
-    );
-
-    final descStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
-      fontSize: isMobile ? 13 : 14,
-      color: cs.onBackground.withOpacity(0.72),
-    );
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // Left icon box
-        Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: iconBgColor,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Icon(icon, color: cs.primary, size: 24),
-        ),
-        const SizedBox(width: 12),
-
-        // Texts
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(LanguageHelper.t(titleKey), style: titleStyle),
-              const SizedBox(height: 4),
-              Text(LanguageHelper.t(descriptionKey), style: descStyle),
-            ],
-          ),
-        ),
-
-        const SizedBox(width: 12),
-
-        // Calendar icon
-        Icon(Icons.event_available_outlined, color: cs.primary, size: 24),
-      ],
     );
   }
 }
