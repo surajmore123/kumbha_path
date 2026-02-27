@@ -1,7 +1,11 @@
 import 'package:equatable/equatable.dart';
 import 'package:kumbha_path/src/models/featured_model.dart';
+import 'package:kumbha_path/src/models/notification_model.dart';
+import 'package:kumbha_path/src/models/quick_alert.dart';
 import 'package:kumbha_path/src/models/temple_detail.dart';
 import 'package:kumbha_path/src/models/upcoming_events.dart';
+import 'package:kumbha_path/src/models/zone_detail.dart';
+import 'package:kumbha_path/src/models/zone_model.dart';
 
 enum AppDetailsStatus { initial, loading, success, failed, updating, updated,sending }
 
@@ -12,6 +16,10 @@ class AppDetailsState extends Equatable {
   final List<EventSummaryModel> upcomingEvents;
    String? reminderMsg;
  final Map<String, bool> reminderStatus;
+ final List<ZoneModel> zoneModel;
+ final List<AlertDetailsModel> quickAlerts;
+ final ZoneLiveDetailsModel zoneDetails;
+ List<NotificationModel> notificationList;
 
 
 
@@ -21,9 +29,13 @@ class AppDetailsState extends Equatable {
   this.status = AppDetailsStatus.initial,
   this.templeDetail = TempleDetailsModel.empty,
   this.eventDetailsModel = EventDetailsModel.empty,
+  this.zoneDetails = ZoneLiveDetailsModel.empty,
+  this.zoneModel = const [] ,
   this.upcomingEvents = const [],
   this.reminderMsg,
   this.reminderStatus = const {},
+  this.quickAlerts = const [],
+  this.notificationList = const [],
 });
 
 
@@ -34,7 +46,11 @@ class AppDetailsState extends Equatable {
     eventDetailsModel,
     upcomingEvents,
     reminderMsg,
-    reminderStatus
+    reminderStatus,
+    zoneModel,
+    zoneDetails,
+    quickAlerts,
+    notificationList,
   ];
 
   AppDetailsState copyWith({
@@ -45,6 +61,10 @@ class AppDetailsState extends Equatable {
     String? reminderMsg,
     bool? reminderEnabled,
     Map<String, bool>? reminderStatus,
+   List<ZoneModel>? zoneModel,
+    ZoneLiveDetailsModel? zoneDetails,
+    List<AlertDetailsModel>? quickAlerts,
+    List<NotificationModel>? notificationList,
   }) {
     return AppDetailsState(
       status: status ?? this.status,
@@ -53,6 +73,10 @@ class AppDetailsState extends Equatable {
       upcomingEvents: upcomingEvents ?? this.upcomingEvents,
       reminderMsg: reminderMsg?? this.reminderMsg,
      reminderStatus: reminderStatus ?? this.reminderStatus,
+      zoneModel: zoneModel ?? this.zoneModel,
+      zoneDetails: zoneDetails ?? this.zoneDetails,
+      quickAlerts: quickAlerts ?? this.quickAlerts,
+      notificationList: notificationList ?? this.notificationList,
     );
   }
 }

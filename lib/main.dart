@@ -7,41 +7,69 @@ import 'package:kumbha_path/app_router.dart';
 import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_bloc.dart';
 import 'package:kumbha_path/src/bloc/main_bloc/app_bloc.dart';
 import 'package:kumbha_path/src/bloc/user_bloc/user_bloc.dart';
-import 'package:kumbha_path/src/bloc/user_bloc/user_event.dart';
+
 import 'package:kumbha_path/src/bloc/webhook_bloc/webhook_bloc.dart';
 import 'package:kumbha_path/src/constant/config.dart';
 import 'package:kumbha_path/src/constant/theme_provider.dart';
 import 'package:kumbha_path/src/services/fcm_service.dart';
+import 'package:kumbha_path/src/services/local_notification_service.dart';
 import 'package:provider/provider.dart';
+
+
+@pragma('vm:entry-point')
+Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print("📩 BACKGROUND PUSH RECEIVED: ${message.notification?.title}");
+}
+
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await Firebase.initializeApp();
   await dotenv.load(fileName: ".env");
 
+  // 🔹 Background handler
+  FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
+
+  // 🔹 Initialize local notifications
+  await NotificationService.init();
+
+  // 🔹 Request notification permission
   await FirebaseMessaging.instance.requestPermission(
     alert: true,
     badge: true,
     sound: true,
   );
+
+  // 🔹 Initialize FCM token
   await FcmService.init();
+
+  // 🔹 Listen for token refresh
   FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
     print("🔁 FCM TOKEN REFRESHED: $newToken");
-
     await userAuthentication.saveFcmToken(newToken);
   });
-FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-  print("📩 PUSH RECEIVED (FOREGROUND)");
 
-  if (message.notification != null) {
-    print("🔔 Title: ${message.notification!.title}");
-    print("🔔 Body: ${message.notification!.body}");
-  }
+  // 🔹 FOREGROUND PUSH HANDLER
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+    print("📩 FOREGROUND PUSH RECEIVED");
 
-  if (message.data.isNotEmpty) {
-    print("📦 Data: ${message.data}");
-  }
-});
+    if (message.notification != null) {
+      await NotificationService.show(
+        title: message.notification!.title ?? "Crowd Alert",
+        body: message.notification!.body ?? "",
+        payload: message.data['zone_id'],
+      );
+    }
+  });
+
+  // 🔹 When app opened from notification (background → foreground)
+  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    print("📲 Notification opened app");
+    print("Payload: ${message.data}");
+  });
 
   runApp(
     ChangeNotifierProvider(
@@ -50,6 +78,7 @@ FirebaseMessaging.onMessage.listen((RemoteMessage message) {
     ),
   );
 }
+
 
 class MyApp extends StatelessWidget {
   final AppRouter appRouter;

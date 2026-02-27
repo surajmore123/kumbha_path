@@ -43,3 +43,26 @@ class ReminderToggleEvent extends AppDetailsEvent {
 
   ReminderToggleEvent({required this.action, required this.eventId});
 }
+
+class CrowdLiveStatusEvent extends AppDetailsEvent {}
+
+class GetZoneDetailEvent extends AppDetailsEvent {
+  final String zoneCode;
+
+
+  GetZoneDetailEvent({
+    required this.zoneCode,
+  });
+}
+
+class QuickAlertsEvent extends AppDetailsEvent {}
+
+class GetNotificationsEvent extends AppDetailsEvent {
+  final String type;
+  GetNotificationsEvent({
+    required this.type,
+  });
+}
+
+
+

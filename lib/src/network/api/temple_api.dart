@@ -84,4 +84,57 @@ class TempleApi extends Api {
       print('error');
     }
   }
+
+ Future<dynamic> getCrowdLiveStatus(Map<String, String> jsonData) async {
+    try {
+      final response = await requestGet(
+        path: 'api/crowd/live-status/',
+        parameters: jsonData,
+      );
+      print("crowd live status response $response");
+      return response;
+    } catch (e, _) {
+      print(e);
+      print('error');
+    }
+  }
+
+    Future<dynamic> getZoneDetail(jsonData) async {
+    try {
+      final response = await requestGet(
+        path: 'api/crowd/zones/${jsonData['code']}/details/',
+        parameters: jsonData,
+      );
+      print('zone details response $response');
+      return response;
+    } catch (e, _) {
+      print(e);
+      print('error');
+    }
+  }
+
+ Future<dynamic> getQuickAlerts(jsonData) async {
+    try {
+      final response = await requestGet(
+        path: 'api/crowd/quick-alerts/',
+        parameters: jsonData,
+      );
+      print('quick alerts response $response');
+      return response;
+    } catch (e, _) {
+      print(e);
+      print('error');
+    }
+  }
+
+  Future<dynamic> getNotifications(jsonData)async{
+    try{
+      final response = await requestGet(path: 'api/crowd/notifications/', parameters: jsonData);
+      print('notifications response $response');
+      return response;
+    }catch (e, _) {
+      print(e);
+      print('error');
+    }
+  }
 }
