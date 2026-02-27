@@ -1,9 +1,13 @@
-
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kumbha_path/main_layout.dart';
-import 'package:flutter/material.dart';
+import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_bloc.dart';
+import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_event.dart';
+import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_state.dart';
+
 import 'package:kumbha_path/src/constant/app_responsive.dart';
 import 'package:kumbha_path/src/constant/language_helper.dart';
+import 'package:kumbha_path/src/models/notification_model.dart';
 
 class LiveUpdates extends StatefulWidget {
   const LiveUpdates({super.key});
@@ -13,7 +17,12 @@ class LiveUpdates extends StatefulWidget {
 }
 
 class _LiveUpdates extends State<LiveUpdates> {
-  int _selectedTabIndex = 0; 
+  void initState() {
+    super.initState();
+    context.read<AppDetailsBloc>().add(GetNotificationsEvent(type: ""));
+  }
+
+  int _selectedTabIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -46,159 +55,98 @@ class _LiveUpdates extends State<LiveUpdates> {
         actions: [
           IconButton(
             icon: Icon(Icons.refresh, color: cs.onSurface),
-            onPressed: () {},
+            onPressed: () {
+              context.read<AppDetailsBloc>().add(GetNotificationsEvent(type: ""));
+            },
           ),
         ],
       ),
       body: ValueListenableBuilder<String>(
         valueListenable: LanguageHelper.currentLang,
         builder: (context, lang, _) {
-          final list = _filteredItems;
+          // final list = _filteredItems;
 
-          return Container(
-            color: theme.scaffoldBackgroundColor,
-            child: Column(
-              children: [
-                // ======= TABS =======
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isMobile ? 16 : isTablet ? 32 : 56,
-                    vertical: isMobile ? 12 : 16,
-                  ),
-                  child: _TabsBar(
-                    selectedIndex: _selectedTabIndex,
-                    onChanged: (index) {
-                      setState(() {
-                        _selectedTabIndex = index;
-                      });
-                    },
-                  ),
-                ),
+          return BlocBuilder<AppDetailsBloc, AppDetailsState>(
+            builder: (context, state) {
+              if (state.status == AppDetailsStatus.loading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final notifications = state.notificationList;
+              if (notifications.isEmpty) {
+                return const Center(child: Text("No notifications found"));
+              }
 
-                // ======= LIST =======
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isMobile ? 16 : isTablet ? 32 : 56,
-                    ),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: isDesktop ? 520 : 480,
+              return Container(
+                color: theme.scaffoldBackgroundColor,
+                child: Column(
+                  children: [
+                    // ======= TABS =======
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal:
+                            isMobile
+                                ? 16
+                                : isTablet
+                                ? 32
+                                : 56,
+                        vertical: isMobile ? 12 : 16,
                       ),
-                      child: ListView.separated(
-                        itemCount: list.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 10),
-                        itemBuilder: (context, index) =>
-                            _UpdateCard(item: list[index]),
+                      child: _TabsBar(
+                        selectedIndex: _selectedTabIndex,
+                        onChanged: (index) {
+                          setState(() {
+                            _selectedTabIndex = index;
+                          });
+                          String type = "";
+                          if (index == 1) {
+                            type = "ALERT";
+                          } else if (index == 2) {
+                            type = "MESSAGE";
+                          }
+                          context.read<AppDetailsBloc>().add(
+                            GetNotificationsEvent(type: type),
+                          );
+                        },
                       ),
                     ),
-                  ),
+
+                    // ======= LIST =======
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal:
+                              isMobile
+                                  ? 16
+                                  : isTablet
+                                  ? 32
+                                  : 56,
+                        ),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: isDesktop ? 520 : 480,
+                          ),
+                          child: ListView.separated(
+                            itemCount: notifications.length,
+                            separatorBuilder:
+                                (_, __) => const SizedBox(height: 10),
+                            itemBuilder:
+                                (context, index) => NotificationCard(
+                                  notifications: notifications[index],
+                                ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           );
         },
       ),
     );
   }
-
-  // ------------- ITEMS -----------------
-
-  List<_LiveUpdateItem> get _allItems => [
-        _LiveUpdateItem(
-          type: _UpdateType.alert,
-          icon: Icons.groups_2_outlined,
-          titleKey: 'live_update_high_crowd_title',
-          timeKey: 'live_update_5_mins_ago',
-          accentColor: Colors.red,
-          iconBgColor: Colors.red.withOpacity(0.12),
-          iconColor: Colors.red.shade700,
-        ),
-        _LiveUpdateItem(
-          type: _UpdateType.alert,
-          icon: Icons.wb_sunny_outlined,
-          titleKey: 'live_update_next_snan_title',
-          timeKey: 'live_update_1_hour_ago',
-          accentColor: Colors.blue,
-          iconBgColor: Colors.blue.withOpacity(0.12),
-          iconColor: Colors.blue.shade700,
-        ),
-        _LiveUpdateItem(
-          type: _UpdateType.message,
-          icon: Icons.directions_bus_filled_outlined,
-          titleKey: 'live_update_shuttle_title',
-          timeKey: 'live_update_1_hour_ago',
-          accentColor: Colors.green,
-          iconBgColor: Colors.green.withOpacity(0.12),
-          iconColor: Colors.green.shade700,
-        ),
-        _LiveUpdateItem(
-          type: _UpdateType.alert,
-          icon: Icons.warning_amber_outlined,
-          titleKey: 'live_update_gate_closed_title',
-          timeKey: 'live_update_2_hours_ago',
-          accentColor: Colors.red,
-          iconBgColor: Colors.red.withOpacity(0.12),
-          iconColor: Colors.red.shade700,
-        ),
-        _LiveUpdateItem(
-          type: _UpdateType.message,
-          icon: Icons.temple_hindu_outlined,
-          titleKey: 'live_update_evening_aarti_title',
-          timeKey: 'live_update_3_hours_ago',
-          accentColor: Colors.blue,
-          iconBgColor: Colors.blue.withOpacity(0.12),
-          iconColor: Colors.blue.shade700,
-        ),
-        _LiveUpdateItem(
-          type: _UpdateType.message,
-          icon: Icons.cloudy_snowing,
-          titleKey: 'live_update_light_showers_title',
-          timeKey: 'live_update_4_hours_ago',
-          accentColor: Colors.green,
-          iconBgColor: Colors.green.withOpacity(0.12),
-          iconColor: Colors.green.shade700,
-        ),
-      ];
-
-  List<_LiveUpdateItem> get _filteredItems {
-    switch (_selectedTabIndex) {
-      case 1:
-        return _allItems.where((e) => e.type == _UpdateType.alert).toList();
-      case 2:
-        return _allItems.where((e) => e.type == _UpdateType.message).toList();
-      default:
-        return _allItems;
-    }
-  }
 }
-
-// ================== DATA MODEL ==================
-
-enum _UpdateType { alert, message }
-
-class _LiveUpdateItem {
-  final _UpdateType type;
-  final IconData icon;
-  final String titleKey;
-  final String timeKey;
-  final Color accentColor;
-  final Color iconBgColor;
-  final Color iconColor;
-
-  _LiveUpdateItem({
-    required this.type,
-    required this.icon,
-    required this.titleKey,
-    required this.timeKey,
-    required this.accentColor,
-    required this.iconBgColor,
-    required this.iconColor,
-  });
-}
-
-// ================== TABS BAR ==================
 
 class _TabsBar extends StatelessWidget {
   final int selectedIndex;
@@ -275,9 +223,7 @@ class _TabChip extends StatelessWidget {
             label,
             style: TextStyle(
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: isSelected
-                  ? cs.onSurface
-                  : cs.onSurface.withOpacity(0.6),
+              color: isSelected ? cs.onSurface : cs.onSurface.withOpacity(0.6),
               fontSize: 14,
             ),
           ),
@@ -289,88 +235,76 @@ class _TabChip extends StatelessWidget {
 
 // ================== UPDATE CARD ==================
 
-class _UpdateCard extends StatelessWidget {
-  final _LiveUpdateItem item;
+class NotificationCard extends StatelessWidget {
+  final NotificationModel notifications;
 
-  const _UpdateCard({required this.item});
+  const NotificationCard({super.key, required this.notifications});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+    final cs = Theme.of(context).colorScheme;
+    final bool isAlert = notifications.type == "ALERT";
+    final Color accentColor = isAlert ? Colors.red : Colors.blue;
+
+    final IconData icon =
+        isAlert ? Icons.warning_amber_rounded : Icons.notifications;
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: cs.shadow.withOpacity(0.06),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: cs.shadow.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            notifications.title ?? "",
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: cs.onSurface,
             ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Accent bar
-            Container(
-              width: 3,
-              height: 40,
-              decoration: BoxDecoration(
-                color: item.accentColor,
-                borderRadius: BorderRadius.circular(2),
-              ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            notifications.body ?? "",
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: cs.onSurface.withOpacity(0.8),
             ),
-            const SizedBox(width: 10),
-
-            // Icon circle
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: item.iconBgColor,
-                shape: BoxShape.circle,
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                notifications.zoneName ?? "",
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: cs.onSurface.withOpacity(0.6),
+                ),
               ),
-              child: Icon(
-                item.icon,
-                color: item.iconColor,
-                size: 22,
+              Text(
+                _formatDate(notifications.createdAt),
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: cs.onSurface.withOpacity(0.6),
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-
-            // Text area
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    LanguageHelper.t(item.titleKey),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w700,
-                      color: cs.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    LanguageHelper.t(item.timeKey),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontSize: 12,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
     );
+  }
+
+  String _formatDate(String? date) {
+    if (date == null || date.isEmpty) return "";
+    final parsed = DateTime.parse(date);
+    return "${parsed.day}/${parsed.month}/${parsed.year}  ${parsed.hour}:${parsed.minute}";
   }
 }
