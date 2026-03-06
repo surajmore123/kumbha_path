@@ -39,10 +39,10 @@ class _LiveUpdates extends State<LiveUpdates> {
       appBar: AppBar(
         backgroundColor: theme.appBarTheme.backgroundColor ?? cs.surface,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.menu, color: cs.onSurface),
-          onPressed: () {},
-        ),
+        // leading: IconButton(
+        //   icon: Icon(Icons.menu, color: cs.onSurface),
+        //   onPressed: () {},
+        // ),
         centerTitle: true,
         title: Text(
           LanguageHelper.t('live_updates_title'),

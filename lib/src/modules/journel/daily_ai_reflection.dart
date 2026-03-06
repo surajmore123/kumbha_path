@@ -1,11 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kumbha_path/main_layout.dart';
+import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_bloc.dart';
+import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_event.dart';
 import 'package:kumbha_path/src/constant/app_color.dart';
 import 'package:kumbha_path/src/constant/app_responsive.dart';
 import 'package:kumbha_path/src/constant/language_helper.dart';
+import 'package:kumbha_path/src/modules/journel/create_my_journer.dart';
 
-class DailyReflectionScreen extends StatelessWidget {
-  const DailyReflectionScreen({super.key});
+class DailyReflectionScreen extends StatefulWidget {
+  String aiReflection;
+  String message;
+  DailyReflectionScreen({
+    super.key,
+    required this.aiReflection,
+    required this.message,
+  });
+
+  @override
+  State<DailyReflectionScreen> createState() => _DailyReflectionScreenState();
+}
+
+class _DailyReflectionScreenState extends State<DailyReflectionScreen> {
+  // void initState() {
+  //   super.initState();
+  //   context.read<AppDetailsBloc>().add(GetAiReflectionEvent());
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +60,12 @@ class DailyReflectionScreen extends StatelessWidget {
         builder: (context, lang, _) {
           final titleStyle = theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w700,
-            fontSize: isMobile ? 16 : isTablet ? 18 : 20,
+            fontSize:
+                isMobile
+                    ? 16
+                    : isTablet
+                    ? 18
+                    : 20,
             color: cs.onBackground,
           );
 
@@ -60,7 +85,12 @@ class DailyReflectionScreen extends StatelessWidget {
             child: Center(
               child: SingleChildScrollView(
                 padding: EdgeInsets.symmetric(
-                  horizontal: isMobile ? 16 : isTablet ? 32 : 56,
+                  horizontal:
+                      isMobile
+                          ? 16
+                          : isTablet
+                          ? 32
+                          : 56,
                   vertical: isMobile ? 16 : 24,
                 ),
                 child: ConstrainedBox(
@@ -72,14 +102,24 @@ class DailyReflectionScreen extends StatelessWidget {
                         titleStyle: titleStyle,
                         dateStyle: dateStyle,
                         bodyStyle: bodyStyle,
+                        aiReflection: widget.aiReflection,
                       ),
                       const SizedBox(height: 32),
                       _ReflectionActions(
                         onShare: () {
-                          // TODO: implement share reflection
+                          
                         },
                         onAddToJournal: () {
-                          // TODO: implement add to journal navigation
+                          print('kdhsdfsjdhfjs');
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (_) => NewJournalEntryScreen(
+                                    aiReflection: widget.aiReflection,
+                                  ),
+                            ),
+                          );
                         },
                       ),
                     ],
@@ -98,11 +138,13 @@ class _ReflectionCard extends StatelessWidget {
   final TextStyle? titleStyle;
   final TextStyle? dateStyle;
   final TextStyle? bodyStyle;
+  final String aiReflection;
 
   const _ReflectionCard({
     required this.titleStyle,
     required this.dateStyle,
     required this.bodyStyle,
+    required this.aiReflection,
   });
 
   @override
@@ -118,9 +160,10 @@ class _ReflectionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? cs.primary.withOpacity(0.12)
-                : cs.primary.withOpacity(0.08),
+            color:
+                Theme.of(context).brightness == Brightness.dark
+                    ? cs.primary.withOpacity(0.12)
+                    : cs.primary.withOpacity(0.08),
             blurRadius: 18,
             offset: const Offset(0, 10),
           ),
@@ -147,28 +190,32 @@ class _ReflectionCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
+                    // aiReflection,
                     LanguageHelper.t('reflection_author_title'),
                     style: titleStyle?.copyWith(color: cs.onPrimary),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    LanguageHelper.t('reflection_date'),
-                    style: dateStyle?.copyWith(color: cs.onPrimary.withOpacity(0.9)),
-                  ),
+                  // const SizedBox(height: 4),
+                  // Text(
+                  //   LanguageHelper.t('reflection_date'),
+                  //   style: dateStyle?.copyWith(
+                  //     color: cs.onPrimary.withOpacity(0.9),
+                  //   ),
+                  // ),
                 ],
               ),
             ],
           ),
           const SizedBox(height: 24),
           Text(
-            LanguageHelper.t('reflection_paragraph_1'),
+            aiReflection,
+            // LanguageHelper.t('reflection_paragraph_1'),
             style: bodyStyle?.copyWith(color: cs.onPrimary.withOpacity(0.95)),
           ),
-          const SizedBox(height: 18),
-          Text(
-            LanguageHelper.t('reflection_paragraph_2'),
-            style: bodyStyle?.copyWith(color: cs.onPrimary.withOpacity(0.95)),
-          ),
+          // const SizedBox(height: 18),
+          // Text(
+          //   LanguageHelper.t('reflection_paragraph_2'),
+          //   style: bodyStyle?.copyWith(color: cs.onPrimary.withOpacity(0.95)),
+          // ),
         ],
       ),
     );
@@ -213,10 +260,10 @@ class _ReflectionActions extends StatelessWidget {
                 Text(
                   LanguageHelper.t('reflection_share_button'),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: cs.onSurface,
-                      ),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: cs.onSurface,
+                  ),
                 ),
               ],
             ),
@@ -236,9 +283,10 @@ class _ReflectionActions extends StatelessWidget {
               gradient: buildThemeGradient(context, isPrimary: true),
               boxShadow: [
                 BoxShadow(
-                  color: brightness == Brightness.dark
-                      ? cs.primary.withOpacity(0.18)
-                      : cs.primary.withOpacity(0.18),
+                  color:
+                      brightness == Brightness.dark
+                          ? cs.primary.withOpacity(0.18)
+                          : cs.primary.withOpacity(0.18),
                   blurRadius: 10,
                   offset: const Offset(0, 6),
                 ),
@@ -252,10 +300,10 @@ class _ReflectionActions extends StatelessWidget {
                 Text(
                   LanguageHelper.t('reflection_add_to_journal_button'),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: cs.onPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: cs.onPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ],
             ),
@@ -265,4 +313,3 @@ class _ReflectionActions extends StatelessWidget {
     );
   }
 }
-

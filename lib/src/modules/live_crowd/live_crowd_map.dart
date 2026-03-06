@@ -174,7 +174,8 @@ class _LiveCrowdMapState extends State<LiveCrowdMap> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          LanguageHelper.t('live_crowd_location'),
+          'Nashik Kumbh Area',
+          // LanguageHelper.t('live_crowd_location'),
           style: theme.textTheme.titleMedium?.copyWith(
             fontSize: 18,
             fontWeight: FontWeight.w600,

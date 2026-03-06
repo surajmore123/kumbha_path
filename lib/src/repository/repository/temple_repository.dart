@@ -44,4 +44,29 @@ class TempleRepository extends Repository {
     Future<dynamic> getNotifications(jsonData) async {
     return templeApi.getNotifications(jsonData);
   }
+
+  
+    
+    Future<dynamic> getAiReflection(jsonData) async {
+    return templeApi.getAiReflection(jsonData);
+  }
+
+  
+    Future<dynamic> getAiPrompt(jsonData) async {
+    return templeApi.getAiPrompt(jsonData);
+  }
+
+  
+   Future<dynamic> createJournalEntry(jsonData) async {
+    return templeApi.createJournalEntry(jsonData);
+  }
+  
+    Future<dynamic> getJournalEntry(jsonData) async {
+    return templeApi.getJournalEntry(jsonData);
+  }
+
+  
+      Future<dynamic> getJournalDetail(jsonData) async {
+    return templeApi.getJournalDetail(jsonData);
+  }
 }

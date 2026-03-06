@@ -6,6 +6,8 @@ import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_event.dart';
 import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_state.dart';
 import 'package:kumbha_path/src/constant/config.dart';
 import 'package:kumbha_path/src/models/featured_model.dart';
+import 'package:kumbha_path/src/models/journal_details.dart';
+import 'package:kumbha_path/src/models/journal_list.dart';
 import 'package:kumbha_path/src/models/notification_model.dart';
 import 'package:kumbha_path/src/models/quick_alert.dart';
 import 'package:kumbha_path/src/models/temple_detail.dart';
@@ -24,6 +26,11 @@ class AppDetailsBloc extends Bloc<AppDetailsEvent, AppDetailsState> {
     on<GetZoneDetailEvent>(_onGetZoneDetail);
     on<QuickAlertsEvent>(_onGetQuickAlerts);
     on<GetNotificationsEvent>(_onGetNotifications);
+    on<GetAiReflectionEvent>(_onGetAiReflection);
+    on<GetAiPromptEvent>(_onGetAiPrompt);
+    on<CreateJournalEntryEvent>(_onCreateJournalEntry);
+    on<GetJournalEntry>(_onGetJournalEntry);
+    on<GetJournalDetail>(_onGetJournalDetails);
   }
 
   FutureOr<void> _onGetTempleDetail(
@@ -277,6 +284,182 @@ class AppDetailsBloc extends Bloc<AppDetailsEvent, AppDetailsState> {
         state.copyWith(
           status: AppDetailsStatus.failed,
           notificationList: const [],
+        ),
+      );
+    }
+  }
+
+  FutureOr<void> _onGetAiReflection(
+    GetAiReflectionEvent event,
+    Emitter<AppDetailsState> emit,
+  ) async {
+    emit(state.copyWith(status: AppDetailsStatus.loading));
+    final token = await storage.read(key: 'access_token');
+    Map<String, String> jsonData = {"access_token": token.toString()};
+
+    final result = await templeRepository.getAiReflection(jsonData);
+    print('ai reflection result $result');
+    if (result != null && result['status'] == 'success') {
+      emit(
+        state.copyWith(
+          status: AppDetailsStatus.aiReflectionLoaded,
+          aiReflection: result['data']['reflection'] ?? '',
+          message: result['message'] ?? '',
+        ),
+      );
+    } else {
+      emit(
+        state.copyWith(
+          status: AppDetailsStatus.aiReflectionError,
+          message: 'Failed to load AI reflection',
+        ),
+      );
+    }
+  }
+
+  FutureOr<void> _onGetAiPrompt(
+    GetAiPromptEvent event,
+    Emitter<AppDetailsState> emit,
+  ) async {
+    emit(state.copyWith(status: AppDetailsStatus.loading));
+    final token = await storage.read(key: 'access_token');
+    Map<String, String> jsonData = {"access_token": token.toString()};
+    final result = await templeRepository.getAiPrompt(jsonData);
+    print('ai prompt result $result');
+    if (result != null && result['status'] == 'success') {
+      emit(
+        state.copyWith(
+          status: AppDetailsStatus.aiPromptLoaded,
+          aiPrompt: result['data']['prompt'] ?? '',
+          message: result['message'] ?? '',
+        ),
+      );
+    } else {
+      emit(
+        state.copyWith(
+          status: AppDetailsStatus.aiPromptError,
+          message: 'Failed to load AI prompt',
+        ),
+      );
+    }
+  }
+
+  FutureOr<void> _onCreateJournalEntry(
+    CreateJournalEntryEvent event,
+    Emitter<AppDetailsState> emit,
+  ) async {
+    emit(state.copyWith(status: AppDetailsStatus.sending));
+
+    final token = await storage.read(key: 'access_token');
+
+    Map<String, dynamic> jsonData = {
+      "access_token": token.toString(),
+      "title": event.title,
+      "notes": event.notes,
+      "ai_prompt":event.aiPrompt,
+      "ai_reflection": event.aiReflection,
+      "mood": event.mood,
+    };
+
+    // ✅ Only add photo if it exists
+    if (event.imagePath != null && event.imagePath!.isNotEmpty) {
+      jsonData["photo"] = event.imagePath!;
+    }
+
+    print('payload ---$jsonData');
+
+    final result = await templeRepository.createJournalEntry(jsonData);
+
+    print('create journal entry result $result');
+
+    if (result != null && result['status'] == 'success') {
+      emit(
+        state.copyWith(
+          status: AppDetailsStatus.journalEntryCreated,
+          message: result['message'] ?? 'Journal entry created successfully',
+        ),
+      );
+    } else {
+      emit(
+        state.copyWith(
+          status: AppDetailsStatus.journalEntryError,
+          message: result['message'] ?? 'Failed to create journal entry',
+        ),
+      );
+    }
+  }
+
+  FutureOr<void> _onGetJournalEntry(
+    GetJournalEntry event,
+    Emitter<AppDetailsState> emit,
+  ) async {
+    if (event.page == 1) {
+      emit(state.copyWith(status: AppDetailsStatus.loading));
+    }
+
+    final token = await storage.read(key: 'access_token');
+
+    Map<String, String> jsonData = {
+      "access_token": token.toString(),
+      "page": event.page.toString(),
+    };
+
+    final result = await templeRepository.getJournalEntry(jsonData);
+
+    if (result != null) {
+      final newData = JournalEntryListModel.fromJson(result);
+
+      // ✅ If first page → replace
+      if (event.page == 1) {
+        emit(
+          state.copyWith(
+            status: AppDetailsStatus.journalEntryoaded,
+            journalEntryListModel: newData,
+          ),
+        );
+      } else {
+        // ✅ Append results
+        final oldResults = state.journalEntryListModel?.results ?? [];
+
+        emit(
+          state.copyWith(
+            status: AppDetailsStatus.journalEntryoaded,
+            journalEntryListModel: newData.copyWith(
+              results: [...oldResults, ...newData.results],
+            ),
+          ),
+        );
+      }
+    } else {
+      emit(state.copyWith(status: AppDetailsStatus.journalEntryError));
+    }
+  }
+
+  FutureOr<void> _onGetJournalDetails(
+    GetJournalDetail event,
+    Emitter<AppDetailsState> emit,
+  ) async {
+    emit(state.copyWith(status: AppDetailsStatus.loading));
+    final token = await storage.read(key: 'access_token');
+    Map<String, String> jsonData = {
+      "access_token": token.toString(),
+      "id": event.id.toString(),
+    };
+
+    final result = await templeRepository.getJournalDetail(jsonData);
+    print('journal detail result $result');
+    if (result != null) {
+      emit(
+        state.copyWith(
+          status: AppDetailsStatus.journalDetailLoaded,
+          journalDetailsModel: JournalDetailsModel.fromJson(result),
+        ),
+      );
+    } else {
+      emit(
+        state.copyWith(
+          status: AppDetailsStatus.failed,
+          journalDetailsModel: JournalDetailsModel.empty,
         ),
       );
     }

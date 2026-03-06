@@ -6,7 +6,7 @@ class ZoneModel extends Equatable {
   final String? code;
   final String? name;
   final double? latitude;
-  final double? longitude;
+  final double? longitude;    
   final int? capacity;
   final int? totalPeople;
   final double? occupancyPercent;
