@@ -137,4 +137,79 @@ class TempleApi extends Api {
       print('error');
     }
   }
+
+  Future<dynamic> getAiReflection(jsonData)async{
+    try{
+      final response = await requestGet(path:'api/journal/ai-reflection', parameters: jsonData);
+      print('ai reflection response $response');
+      return response;
+    }catch (e, _) {
+      print(e);
+      print('error');
+    }
+  }
+
+   Future<dynamic> getAiPrompt(jsonData)async{
+    try{
+      final response = await requestGet(path:'api/journal/ai-prompt', parameters: jsonData);
+      print('ai prompt response $response');
+      return response;
+    }catch (e, _) {
+      print(e);
+      print('error');
+    }
+  }
+
+
+
+Future<dynamic> createJournalEntry(jsonData) async {
+  try {
+
+    String? imagePath = jsonData["photo"];
+
+    jsonData.remove("photo");
+
+    final response = await requestMultipartPost(
+      path: 'api/journal/create-entry/',
+      parameters: jsonData,
+      fileKey: "photo",
+      filePath: imagePath,
+    );
+
+    print('journal entry response $response');
+    return response;
+
+  } catch (e, _) {
+    print(e);
+    print('error');
+  }
+}
+
+   Future<dynamic> getJournalEntry(jsonData)async{
+    try{
+      final response = await requestGet(path:'api/journal/entries/', parameters: jsonData);
+      print('journal entry response $response');
+      return response;
+    }catch (e, _) {
+      print(e);
+      print('error');
+    }
+  }
+
+
+ Future<dynamic> getJournalDetail(jsonData) async {
+    try {
+      final response = await requestGet(
+        path: 'api/journal/entries/${jsonData['id']}/',
+        parameters: jsonData,
+      );
+      print('journal details response $response');
+      return response;
+    } catch (e, _) {
+      print(e);
+      print('error');
+    }
+  }
+
+
 }

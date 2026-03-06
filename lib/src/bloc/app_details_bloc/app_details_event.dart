@@ -49,20 +49,46 @@ class CrowdLiveStatusEvent extends AppDetailsEvent {}
 class GetZoneDetailEvent extends AppDetailsEvent {
   final String zoneCode;
 
-
-  GetZoneDetailEvent({
-    required this.zoneCode,
-  });
+  GetZoneDetailEvent({required this.zoneCode});
 }
 
 class QuickAlertsEvent extends AppDetailsEvent {}
 
 class GetNotificationsEvent extends AppDetailsEvent {
   final String type;
-  GetNotificationsEvent({
-    required this.type,
+  GetNotificationsEvent({required this.type});
+}
+
+class GetAiReflectionEvent extends AppDetailsEvent {}
+
+class GetAiPromptEvent extends AppDetailsEvent {}
+
+class CreateJournalEntryEvent extends AppDetailsEvent {
+  final String title;
+  final String notes;
+   final String aiPrompt;
+  final String aiReflection;
+  final String mood;
+  final String? imagePath;
+
+  CreateJournalEntryEvent({
+    required this.title,
+    required this.notes,
+    required this.aiPrompt,
+    required this.aiReflection,
+    required this.mood,
+    this.imagePath,
   });
 }
 
+class GetJournalEntry extends AppDetailsEvent {
+  final int page;
 
+  GetJournalEntry({required this.page});
+}
 
+class GetJournalDetail extends AppDetailsEvent {
+  final String id;
+
+  GetJournalDetail({required this.id});
+}

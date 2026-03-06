@@ -58,8 +58,8 @@ class AppRouter {
       case '/journal':
         return MaterialPageRoute(builder: (_) => const JournerScreen());
 
-      case '/myJournalEntry':
-        return MaterialPageRoute(builder: (_) => const NewJournalEntryScreen());
+      // case '/myJournalEntry':
+      //   return MaterialPageRoute(builder: (_) => const NewJournalEntryScreen());
 
       case '/notifications':
         return MaterialPageRoute(builder: (_) => const LiveUpdates());

@@ -242,6 +242,56 @@ Future<dynamic> requestPostMultipart({
   }
 }
 
+Future<dynamic> requestMultipartPost({
+  required String path,
+  required Map<String, dynamic> parameters,
+  String? fileKey,
+  String? filePath,
+}) async {
+  bool chk = parameters.containsKey("access_token");
+
+  var headerData = Map<String, String>.from(_headers);
+
+  if (chk) {
+    headerData['Authorization'] = 'Bearer ${parameters['access_token']}';
+    parameters.remove('access_token');
+  }
+
+  Uri uri;
+  if (_protocol == "https") {
+    uri = Uri.https(_host, path);
+  } else {
+    uri = Uri.http(_host, path);
+  }
+
+  print("url %%%%%%%%%$uri");
+
+  var request = http.MultipartRequest("POST", uri);
+
+  request.headers.addAll(headerData);
+
+  /// add normal fields
+  parameters.forEach((key, value) {
+    request.fields[key] = value.toString();
+  });
+
+  /// add file
+  if (filePath != null && filePath.isNotEmpty) {
+    request.files.add(
+      await http.MultipartFile.fromPath(fileKey ?? "photo", filePath),
+    );
+  }
+
+  var streamedResponse = await request.send();
+  var response = await http.Response.fromStream(streamedResponse);
+
+  if (response.body.isNotEmpty) {
+    return json.decode(response.body);
+  } else {
+    return {};
+  }
+}
+
 
   dynamic stringToBase64(data) {
     return stringToBase64Url.decode(data);

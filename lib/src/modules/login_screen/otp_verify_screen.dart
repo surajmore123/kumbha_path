@@ -5,6 +5,7 @@ import 'package:kumbha_path/src/bloc/user_bloc/user_bloc.dart';
 import 'package:kumbha_path/src/bloc/user_bloc/user_event.dart';
 import 'package:kumbha_path/src/bloc/user_bloc/user_state.dart';
 import 'package:kumbha_path/src/components/loader/center_loader.dart';
+import 'package:kumbha_path/src/constant/app_color.dart';
 import 'package:kumbha_path/src/constant/app_responsive.dart';
 import 'package:kumbha_path/src/constant/language_helper.dart';
 import 'package:kumbha_path/src/modules/dashboard/dashboard.dart';
@@ -41,6 +42,16 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: blackColor),
+          onPressed: () {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/loginScreen',
+              (route) => false,
+            );
+          },
+        ),
         centerTitle: true,
         title: Text(LanguageHelper.t('verify_your_number')),
       ),
@@ -107,12 +118,16 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                   backgroundColor: Colors.amberAccent,
                   toastLength: Toast.LENGTH_SHORT,
                 );
-
-                Navigator.pushNamed(context, '/dashboardScreen');
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/dashboardScreen',
+                  (route) => false,
+                );
+                // Navigator.pushNamed(context, '/dashboardScreen');
               } else if (state.status == UserStatus.sending) {
                 CenterLoader.show(context);
               } else if (state.status == UserStatus.failure) {
-               CenterLoader.hide();
+                CenterLoader.hide();
                 Fluttertoast.showToast(
                   msg: "Otp verification Failed",
                   backgroundColor: Colors.red,

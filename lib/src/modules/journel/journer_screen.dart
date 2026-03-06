@@ -1,12 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:http/http.dart';
 import 'package:kumbha_path/main_layout.dart';
+import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_bloc.dart';
+import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_event.dart';
+import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_state.dart';
 import 'package:kumbha_path/src/constant/app_color.dart';
 
 import 'package:kumbha_path/src/constant/app_responsive.dart';
 import 'package:kumbha_path/src/constant/language_helper.dart';
+import 'package:kumbha_path/src/constant/time_formator.dart';
+import 'package:kumbha_path/src/models/journal_list.dart';
+import 'package:kumbha_path/src/modules/journel/create_my_journer.dart';
 import 'package:kumbha_path/src/modules/journel/daily_ai_reflection.dart';
-class JournerScreen extends StatelessWidget {
+import 'package:kumbha_path/src/modules/journel/journal_details.dart';
+
+class JournerScreen extends StatefulWidget {
   const JournerScreen({super.key});
+
+  @override
+  State<JournerScreen> createState() => _JournerScreenState();
+}
+
+class _JournerScreenState extends State<JournerScreen> {
+  int currentPage = 1;
+  @override
+  void initState() {
+    super.initState();
+    context.read<AppDetailsBloc>().add(GetJournalEntry(page: 1));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,6 +38,92 @@ class JournerScreen extends StatelessWidget {
     final isMobile = context.isMobile;
     final isTablet = context.isTablet;
     final isDesktop = context.isDesktop;
+
+    void _showAiPromptBottomSheet(
+      BuildContext context, {
+      required String prompt,
+      required String message,
+    }) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        builder: (_) {
+          final theme = Theme.of(context);
+          final cs = theme.colorScheme;
+
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 24,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                /// MESSAGE
+                Text(
+                  message,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: cs.onSurface,
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                /// PROMPT
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceVariant,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    prompt,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      height: 1.4,
+                      color: cs.onSurface,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                /// ADD TO JOURNAL BUTTON
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context); // close bottom sheet
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (_) => NewJournalEntryScreen(aiPrompt: prompt),
+                        ),
+                      );
+                    },
+                    child: const Text("Add to Journal Entry"),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
 
     return MainLayout(
       showDefaultBottom: true,
@@ -49,136 +157,241 @@ class JournerScreen extends StatelessWidget {
             color: cs.onPrimary,
           );
 
-          return Container(
-            color: theme.scaffoldBackgroundColor,
-            child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: isMobile ? 16 : isTablet ? 32 : 56,
-                vertical: isMobile ? 16 : 24,
-              ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: isDesktop ? 520 : 480),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ======= TOP TOGGLE BUTTONS =======
-                    Row(
+          return BlocConsumer<AppDetailsBloc, AppDetailsState>(
+            listener: (context, state) {
+              if (state.status == AppDetailsStatus.aiReflectionLoaded) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => DailyReflectionScreen(
+                          aiReflection: state.aiReflection.toString(),
+                          message: state.message.toString(),
+                        ),
+                  ),
+                );
+              } else if (state.status == AppDetailsStatus.aiReflectionError) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(state.message.toString())),
+                );
+              }
+
+              if (state.status == AppDetailsStatus.aiPromptLoaded) {
+                _showAiPromptBottomSheet(
+                  context,
+                  prompt: state.aiPrompt.toString(),
+                  message: state.message.toString(),
+                );
+              }
+
+              if (state.status == AppDetailsStatus.aiPromptError) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(state.message.toString())),
+                );
+              }
+
+              if (state.status == AppDetailsStatus.journalDetailLoaded) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => JournalDetails()),
+                );
+              }
+            },
+            builder: (context, state) {
+              final journalModel = state.journalEntryListModel;
+
+              return Container(
+                color: theme.scaffoldBackgroundColor,
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal:
+                        isMobile
+                            ? 16
+                            : isTablet
+                            ? 32
+                            : 56,
+                    vertical: isMobile ? 16 : 24,
+                  ),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: isDesktop ? 520 : 480,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: _JournalToggleButton(
-                            useGradient: true, // show gradient (purple in dark, orange in light)
-                            labelKey: 'journal_ai_reflection',
-                            isPrimary: false,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => DailyReflectionScreen(),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _JournalToggleButton(
+                                useGradient: true,
+                                labelKey: 'journal_ai_reflection',
+                                isPrimary: false,
+                                onTap: () {
+                                  final bloc = context.read<AppDetailsBloc>();
+                                  bloc.add(GetAiReflectionEvent());
+                                  // Navigator.push(
+                                  //   context,
+                                  //   MaterialPageRoute(
+                                  //     builder: (context) => DailyReflectionScreen(
+                                  //       aiReflection: bloc.state.aiReflection,
+                                  //       message: bloc.state.message,
+                                  //     ),
+                                  //   ),
+                                  // );
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _JournalToggleButton(
+                                labelKey: 'journal_add_entry',
+                                isPrimary: true,
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder:
+                                          (context) => NewJournalEntryScreen(
+                                            aiPrompt: state.aiPrompt,
+                                            aiReflection: state.aiReflection,
+                                          ),
+                                    ),
+                                  );
+                                  //  e
+                                  //       Navigator.pushNamed(
+                                  //         context,
+                                  //         '/myJournalEntry',
+                                  //       );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // ======= AI PROMPT CARD =======
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: buildThemeGradient(
+                              context,
+                              isPrimary: true,
+                            ),
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                LanguageHelper.t('journal_prompt_title'),
+                                style: sectionTitleStyle,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                LanguageHelper.t('journal_prompt_subtitle'),
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontSize: isMobile ? 13.5 : 14,
+                                  color: cs.onPrimary.withOpacity(0.92),
+                                  height: 1.4,
                                 ),
-                              );
-                            },
+                              ),
+                              const SizedBox(height: 14),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: _PrimaryJournalButton(
+                                  labelKey: 'journal_get_ai_prompt',
+                                  onTap: () {
+                                    final bloc = context.read<AppDetailsBloc>();
+                                    bloc.add(GetAiPromptEvent());
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _JournalToggleButton(
-                            labelKey: 'journal_add_entry',
-                            isPrimary: true,
-                            onTap: () {
-                              Navigator.pushNamed(context, '/myJournalEntry');
-                            },
-                          ),
+
+                        const SizedBox(height: 24),
+
+                        // ======= PAST ENTRIES TITLE =======
+                        Text(
+                          LanguageHelper.t('journal_past_entries'),
+                          style: TextStyle(color: blackColor),
                         ),
+
+                        const SizedBox(height: 12),
+
+                        if (journalModel?.results == null ||
+                            journalModel!.results.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            child: Center(
+                              child: Text(
+                                "No entries yet",
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
+                          )
+                        else
+                          Column(
+                            children: [
+                              ...journalModel.results.map((entry) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: _DynamicJournalCard(
+                                    entry: entry,
+                                    ontap: () {
+                                      context.read<AppDetailsBloc>().add(
+                                        GetJournalDetail(
+                                          id: entry.id.toString(),
+                                        ),
+                                      );
+                                      // Navigator.push(
+                                      //   context,
+                                      //   MaterialPageRoute(
+                                      //     builder:
+                                      //         (context) => JournalDetails(),
+                                      //   ),
+                                      // );
+                                    },
+                                  ),
+                                );
+                              }).toList(),
+
+                              /// Show More Button
+                              if (journalModel.next != null)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      currentPage++;
+                                      context.read<AppDetailsBloc>().add(
+                                        GetJournalEntry(page: currentPage),
+                                      );
+                                    },
+                                    child: const Text("Show More"),
+                                  ),
+                                ),
+                            ],
+                          ),
+
+                        const SizedBox(height: 24),
                       ],
                     ),
-
-                    const SizedBox(height: 20),
-
-                    // ======= AI PROMPT CARD =======
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: buildThemeGradient(context, isPrimary: true),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            LanguageHelper.t('journal_prompt_title'),
-                            style: sectionTitleStyle,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            LanguageHelper.t('journal_prompt_subtitle'),
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontSize: isMobile ? 13.5 : 14,
-                              color: cs.onPrimary.withOpacity(0.92),
-                              height: 1.4,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: _PrimaryJournalButton(
-                              labelKey: 'journal_get_ai_prompt',
-                              onTap: () {
-                                // TODO: generate AI prompt
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // ======= PAST ENTRIES TITLE =======
-                    Text(
-                      LanguageHelper.t('journal_past_entries'),
-                      style: sectionTitleStyle,
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // ======= PAST ENTRY CARDS =======
-                    _JournalEntryCard(
-                      icon: Icons.emoji_emotions_outlined,
-                      iconColor: cs.primary,
-                      dateKey: 'journal_entry_1_date',
-                      textKey: 'journal_entry_1_text',
-                      moodKey: 'journal_entry_1_mood',
-                    ),
-                    const SizedBox(height: 12),
-                    _JournalEntryCard(
-                      icon: Icons.self_improvement_outlined,
-                      iconColor: cs.secondary,
-                      dateKey: 'journal_entry_2_date',
-                      textKey: 'journal_entry_2_text',
-                      moodKey: 'journal_entry_2_mood',
-                    ),
-                    const SizedBox(height: 12),
-                    _JournalEntryCard(
-                      icon: Icons.celebration_outlined,
-                      iconColor: cs.tertiary ?? cs.primary,
-                      dateKey: 'journal_entry_3_date',
-                      textKey: 'journal_entry_3_text',
-                      moodKey: 'journal_entry_3_mood',
-                    ),
-
-                    const SizedBox(height: 24),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           );
         },
       ),
     );
   }
 }
-
-// ========== TOP TOGGLE BUTTON ==========
 
 class _JournalToggleButton extends StatelessWidget {
   final String labelKey;
@@ -206,17 +419,24 @@ class _JournalToggleButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
-          gradient: applyGradient ? buildThemeGradient(context, isPrimary: true) : null,
+          gradient:
+              applyGradient
+                  ? buildThemeGradient(context, isPrimary: true)
+                  : null,
           color: applyGradient ? null : cs.surfaceVariant,
-          boxShadow: applyGradient
-              ? [
-                  BoxShadow(
-                    color: isDark ? cs.primary.withOpacity(0.14) : cs.primary.withOpacity(0.18),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ]
-              : null,
+          boxShadow:
+              applyGradient
+                  ? [
+                    BoxShadow(
+                      color:
+                          isDark
+                              ? cs.primary.withOpacity(0.14)
+                              : cs.primary.withOpacity(0.18),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                  : null,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -242,8 +462,6 @@ class _JournalToggleButton extends StatelessWidget {
   }
 }
 
-// ========== PRIMARY SMALL BUTTON (GET AI PROMPT) ==========
-
 class _PrimaryJournalButton extends StatelessWidget {
   final String labelKey;
   final VoidCallback? onTap;
@@ -264,9 +482,10 @@ class _PrimaryJournalButton extends StatelessWidget {
           gradient: buildThemeGradient(context, isPrimary: true),
           boxShadow: [
             BoxShadow(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? cs.primary.withOpacity(0.18)
-                  : cs.primary.withOpacity(0.18),
+              color:
+                  Theme.of(context).brightness == Brightness.dark
+                      ? cs.primary.withOpacity(0.18)
+                      : cs.primary.withOpacity(0.18),
               blurRadius: 6,
               offset: const Offset(0, 3),
             ),
@@ -285,102 +504,54 @@ class _PrimaryJournalButton extends StatelessWidget {
   }
 }
 
-// ========== JOURNAL ENTRY CARD ==========
+class _DynamicJournalCard extends StatelessWidget {
+  final JournalEntryModel entry;
+  final VoidCallback ontap;
 
-class _JournalEntryCard extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String dateKey;
-  final String textKey;
-  final String moodKey;
-
-  const _JournalEntryCard({
-    required this.icon,
-    required this.iconColor,
-    required this.dateKey,
-    required this.textKey,
-    required this.moodKey,
-  });
+  const _DynamicJournalCard({required this.entry, required this.ontap});
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final date = LanguageHelper.t(dateKey);
-    final text = LanguageHelper.t(textKey);
-    final mood = LanguageHelper.t(moodKey);
+  
 
-    // We'll apply the same primary gradient to cards (matches buttons).
-    final applyGradient = true;
+    return GestureDetector(
+      onTap: ontap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          gradient: buildThemeGradient(context, isPrimary: true),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              DateTimeHelper.formatAlertTime(entry.createdAt ?? ""),
 
-    final textPrimaryColor = applyGradient ? cs.onPrimary : cs.onBackground;
-    final bodyTextColor = applyGradient ? cs.onPrimary.withOpacity(0.92) : cs.onBackground.withOpacity(0.82);
-    final iconColorFinal = applyGradient ? cs.onPrimary : iconColor;
-    final iconTileBg = applyGradient ? cs.onPrimary.withOpacity(0.10) : cs.surface.withOpacity(0.06);
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: applyGradient ? buildThemeGradient(context, isPrimary: true) : null,
-        color: applyGradient ? null : cs.surfaceVariant,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // icon tile
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: iconTileBg,
-              borderRadius: BorderRadius.circular(18),
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: cs.onPrimary,
+              ),
             ),
-            child: Icon(icon, size: 26, color: iconColorFinal),
-          ),
-          const SizedBox(width: 12),
-
-          // text area
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  date,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w700,
-                        color: textPrimaryColor,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  text,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontSize: 13,
-                        color: bodyTextColor,
-                        height: 1.3,
-                      ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  mood,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: textPrimaryColor,
-                      ),
-                ),
-              ],
+            const SizedBox(height: 6),
+            Text(
+              entry.notes ?? "",
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: cs.onPrimary),
             ),
-          ),
-
-          const SizedBox(width: 8),
-
-          Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant),
-        ],
+            const SizedBox(height: 6),
+            Text(
+              entry.mood ?? "",
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: cs.onPrimary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
