@@ -38,7 +38,7 @@ class _JournalDetailsState extends State<JournalDetails> {
       appBar: AppBar(
         elevation: 0,
         centerTitle: true,
-      iconTheme: IconThemeData(color: blackColor),
+        iconTheme: IconThemeData(color: blackColor),
         title: Text(
           "Journal Entry",
           style: theme.textTheme.titleLarge?.copyWith(

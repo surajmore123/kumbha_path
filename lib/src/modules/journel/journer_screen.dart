@@ -130,6 +130,7 @@ class _JournerScreenState extends State<JournerScreen> {
       ctx: 3,
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
+         automaticallyImplyLeading: false,
         backgroundColor: theme.appBarTheme.backgroundColor ?? cs.surface,
         elevation: 0,
         centerTitle: true,

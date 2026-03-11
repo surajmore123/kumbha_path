@@ -43,12 +43,13 @@ class _ShahiEventsState extends State<ShahiEvents> {
       showDefaultBottom: true,
       ctx: 2,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: theme.appBarTheme.backgroundColor ?? cs.surface,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: cs.onSurface),
-          onPressed: () => Navigator.pop(context),
-        ),
+        // leading: IconButton(
+        //   icon: Icon(Icons.arrow_back, color: cs.onSurface),
+        //   onPressed: () => Navigator.pop(context),
+        // ),
         centerTitle: true,
         title: Text(
           LanguageHelper.t('events_appbar_title'),
