@@ -42,7 +42,7 @@ Future<dynamic> requestPostMultipart({
   required String path,
   required File file,
   required Map<String, String> fields,
-  required String contentType,      // <-- explicit content type
+  required String contentType,     
   String? accessToken,
 }) async {
   // copy headers but remove JSON content-type
