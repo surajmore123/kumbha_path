@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
 class AppBreakpoints {
-  static const double mobile = 600;   
-  static const double tablet = 1024;  
+  static const double mobile = 600;
+  static const double tablet = 1024;
 }
 
+/// Screen-size helpers for layout only. Do not derive font sizes from these:
+/// text size comes from the theme's text styles plus the global font scale
+/// (see design_system/app_typography.dart).
 extension ResponsiveContext on BuildContext {
   Size get screenSize => MediaQuery.of(this).size;
   double get screenWidth => screenSize.width;

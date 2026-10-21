@@ -1,250 +1,151 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kumbha_path/main_layout.dart';
 import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_bloc.dart'
     show AppDetailsBloc;
 import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_state.dart';
-import 'package:kumbha_path/src/constant/api_constatnt.dart';
-import 'package:kumbha_path/src/constant/app_color.dart';
-import 'package:kumbha_path/src/constant/app_responsive.dart';
-import 'package:kumbha_path/src/constant/time_formator.dart';
+import 'package:kumbha_path/src/components/components.dart';
+import 'package:kumbha_path/src/constant/design_system/design_system.dart';
+import 'package:kumbha_path/src/models/journal_details.dart';
+import 'package:kumbha_path/src/modules/journel/widgets/journal_widgets.dart';
 
-class JournalDetails extends StatefulWidget {
+/// One journal entry, read from `AppDetailsState.journalDetailsModel`
+/// (loaded by `GetJournalDetail` before this screen opens, as before).
+///
+/// Read-only: the journal API has no edit, delete or share endpoints.
+/// Fields are shown exactly as stored; missing ones are left out.
+class JournalDetails extends StatelessWidget {
   const JournalDetails({super.key});
 
-  @override
-  State<JournalDetails> createState() => _JournalDetailsState();
-}
+  static const double _readingWidth = 680;
 
-class _JournalDetailsState extends State<JournalDetails> {
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+    final locale =
+        EasyLocalization.of(context)?.locale.languageCode ??
+        Localizations.localeOf(context).languageCode;
 
-    final isMobile = context.isMobile;
-    final isTablet = context.isTablet;
-    final isDesktop = context.isDesktop;
-    final Map<String, String> moodEmoji = {
-      "peaceful": "🙏",
-      "joyful": "😊",
-      "enlightened": "✨",
-      "reflective": "🤔",
-      "emotional": "😢",
-    };
     return MainLayout(
       showDefaultBottom: false,
       ctx: 3,
-      appBar: AppBar(
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: IconThemeData(color: blackColor),
-        title: Text(
-          "Journal Entry",
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        // actions: [
-        //   Padding(
-        //     padding: const EdgeInsets.only(right: 12),
-        //     child: CircleAvatar(
-        //       backgroundColor: Colors.orange.shade100,
-        //       child: Icon(Icons.edit, color: Colors.orange.shade700),
-        //     ),
-        //   ),
-        // ],
-      ),
-
-      body: BlocConsumer<AppDetailsBloc, AppDetailsState>(
-        listener: (context, state) {},
+      appBar: AppAppBar(title: 'journal_entry_title'.tr()),
+      body: BlocBuilder<AppDetailsBloc, AppDetailsState>(
+        buildWhen: (a, b) => a.journalDetailsModel != b.journalDetailsModel,
         builder: (context, state) {
-          final journalData = state.journalDetailsModel;
-          final moodValue = journalData!.mood?.toLowerCase() ?? "";
-          final emoji = moodEmoji[moodValue] ?? "🙂";
-          return SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-              horizontal:
-                  isMobile
-                      ? 16
-                      : isTablet
-                      ? 32
-                      : 56,
-              vertical: isMobile ? 16 : 24,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                journalData!.photo!.isNotEmpty
-                    ? ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Image.network(
-                        '${journalData.photo}',
-                        height: isMobile ? 220 : 320,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-                    )
-                    : SizedBox.shrink(),
-
-                const SizedBox(height: 18),
-
-                /// Date & Time
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.calendar_today,
-                      size: 16,
-                      color: Colors.orange,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      DateTimeHelper.formatAlertTime(
-                        journalData.createdAt.toString(),
-                      ),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.orange,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ],
+          final entry = state.journalDetailsModel ?? JournalDetailsModel.empty;
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final side =
+                  constraints.maxWidth >
+                          _readingWidth + AppSpacing.pageGutter * 2
+                      ? (constraints.maxWidth - _readingWidth) / 2
+                      : AppSpacing.pageGutter;
+              return ListView(
+                padding: EdgeInsets.fromLTRB(
+                  side,
+                  AppSpacing.md,
+                  side,
+                  AppSpacing.huge,
                 ),
-
-                const SizedBox(height: 10),
-
-                /// Title
-                Text(
-                  journalData.title.toString(),
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    height: 1.3,
-                  ),
-                ),
-
-                const SizedBox(height: 14),
-
-                /// Mood Chip
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: Colors.orange.shade200),
-                    color: Colors.orange.shade50,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(emoji, style: const TextStyle(fontSize: 18)),
-                      const SizedBox(width: 6),
-                      Text(
-                        journalData.mood.toString(),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: Colors.orange.shade800,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 22),
-
-                journalData.aiPrompt!.isNotEmpty
-                    ? Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: cs.surfaceVariant.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.lightbulb_outline, size: 18),
-                              const SizedBox(width: 6),
-                              Text(
-                                "Daily Prompt",
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            journalData.aiPrompt.toString(),
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontStyle: FontStyle.italic,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                    : SizedBox.shrink(),
-
-                const SizedBox(height: 22),
-
-                /// Journal Content
-                Text(
-                  journalData.notes.toString(),
-                  style: theme.textTheme.bodyLarge?.copyWith(height: 1.6),
-                ),
-
-                const SizedBox(height: 28),
-
-                journalData.aiReflection!.isNotEmpty
-                    ? Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: Colors.orange.shade50,
-                        border: Border.all(color: Colors.orange.shade200),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.auto_awesome,
-                                color: Colors.orange,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                "AI Guru Reflection",
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 12),
-
-                          Text(
-                            journalData.aiReflection.toString(),
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              height: 1.6,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                    : SizedBox.shrink(),
-
-                const SizedBox(height: 30),
-              ],
-            ),
+                children: _content(context, entry, locale),
+              );
+            },
           );
         },
       ),
     );
+  }
+
+  List<Widget> _content(
+    BuildContext context,
+    JournalDetailsModel e,
+    String locale,
+  ) {
+    final text = context.textTheme;
+    final colors = context.colorScheme;
+    final title = (e.title ?? '').trim();
+    final notes = (e.notes ?? '').trim();
+    final prompt = (e.aiPrompt ?? '').trim();
+    final reflection = (e.aiReflection ?? '').trim();
+    final photo = (e.photo ?? '').trim();
+    final time = journalTime(e.createdAt);
+
+    return [
+      if (photo.isNotEmpty) ...[
+        LayoutBuilder(
+          builder:
+              (context, c) => JournalPhoto(
+                source: photo,
+                width: c.maxWidth,
+                height: (c.maxWidth * 0.62).clamp(180.0, 360.0),
+              ),
+        ),
+        AppSpacing.gapXl,
+      ],
+      if (time != null)
+        Row(
+          children: [
+            Icon(
+              Icons.calendar_today_outlined,
+              size: 16,
+              color: colors.primary,
+            ),
+            AppSpacing.gapXs,
+            Expanded(
+              child: Text(
+                journalDateTimeLabel(time, locale),
+                style: text.labelLarge?.copyWith(color: colors.primary),
+              ),
+            ),
+          ],
+        ),
+      AppSpacing.gapSm,
+      Semantics(
+        header: true,
+        child: Text(
+          title.isEmpty ? 'journal_untitled'.tr() : title,
+          style: text.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            fontStyle: title.isEmpty ? FontStyle.italic : null,
+          ),
+        ),
+      ),
+      if ((e.mood ?? '').trim().isNotEmpty) ...[
+        AppSpacing.gapMd,
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: MoodChip(mood: e.mood),
+        ),
+      ],
+      if (prompt.isNotEmpty) ...[
+        AppSpacing.gapXl,
+        AiContentCard(
+          heading: 'journal_daily_prompt'.tr(),
+          child: Text(prompt, style: text.bodyLarge?.copyWith(height: 1.5)),
+        ),
+      ],
+      AppSpacing.gapXl,
+      AppSectionHeader(title: 'journal_your_words'.tr()),
+      AppSpacing.gapSm,
+      SelectableText(
+        notes.isEmpty ? 'journal_no_notes'.tr() : notes,
+        style: text.bodyLarge?.copyWith(
+          height: 1.7,
+          color: notes.isEmpty ? colors.onSurfaceVariant : null,
+          fontStyle: notes.isEmpty ? FontStyle.italic : null,
+        ),
+      ),
+      if (reflection.isNotEmpty) ...[
+        AppSpacing.gapXxl,
+        AiContentCard(
+          heading: 'journal_ai_reflection_heading'.tr(),
+          child: SelectableText(
+            reflection,
+            style: text.bodyLarge?.copyWith(height: 1.6),
+          ),
+        ),
+      ],
+    ];
   }
 }

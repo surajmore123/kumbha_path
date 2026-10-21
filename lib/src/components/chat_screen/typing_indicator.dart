@@ -1,9 +1,16 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:kumbha_path/src/components/chat_screen/chat_bubble.dart';
+import 'package:kumbha_path/src/constant/design_system/design_system.dart';
 
+/// Shown while a reply is being prepared. The backend returns complete
+/// replies (no streaming), so this is a plain "thinking" state, never fake
+/// partial text. Honors the system "reduce motion" setting.
 class TypingIndicatorRow extends StatefulWidget {
+  /// Kept for existing callers; the avatar is now [AiGuruAvatar].
   final List<String> avatars;
 
-  const TypingIndicatorRow({required this.avatars, Key? key}) : super(key: key);
+  const TypingIndicatorRow({this.avatars = const [], super.key});
 
   @override
   State<TypingIndicatorRow> createState() => TypingIndicatorRowState();
@@ -11,35 +18,26 @@ class TypingIndicatorRow extends StatefulWidget {
 
 class TypingIndicatorRowState extends State<TypingIndicatorRow>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _dot1;
-  late Animation<double> _dot2;
-  late Animation<double> _dot3;
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  );
+  late final List<Animation<double>> _dots = [
+    for (var i = 0; i < 3; i++)
+      CurvedAnimation(
+        parent: _controller,
+        curve: Interval(i * 0.15, 0.6 + i * 0.15, curve: Curves.easeInOut),
+      ),
+  ];
 
   @override
-  void initState() {
-    super.initState();
-
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
-
-    // Staggered animations for the 3 dots
-    _dot1 = CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.0, 0.6, curve: Curves.easeInOut),
-    );
-
-    _dot2 = CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.15, 0.75, curve: Curves.easeInOut),
-    );
-
-    _dot3 = CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.3, 0.9, curve: Curves.easeInOut),
-    );
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
   }
 
   @override
@@ -50,62 +48,65 @@ class TypingIndicatorRowState extends State<TypingIndicatorRow>
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        // stacked avatars vertically
-        Column(
-          children:
-              widget.avatars
-                  .map(
-                    (path) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: CircleAvatar(
-                        radius: 16,
-                        backgroundImage: AssetImage(path),
-                      ),
-                    ),
-                  )
-                  .toList(),
+    final colors = context.colorScheme;
+    return Semantics(
+      liveRegion: true,
+      label: 'ai_thinking'.tr(),
+      child: ExcludeSemantics(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const AiGuruAvatar(),
+            AppSpacing.gapSm,
+            Container(
+              decoration: BoxDecoration(
+                color: colors.surfaceContainerLow,
+                borderRadius: AppRadius.lgAll,
+                border: Border.all(color: context.semanticColors.border),
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.md,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < 3; i++) ...[
+                    if (i > 0) const SizedBox(width: AppSpacing.xs),
+                    _Dot(animation: _dots[i]),
+                  ],
+                ],
+              ),
+            ),
+            AppSpacing.gapSm,
+            Flexible(
+              child: Text(
+                'ai_thinking'.tr(),
+                style: context.textTheme.bodySmall,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF7E8),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _AnimatedDot(animation: _dot1),
-              const SizedBox(width: 4),
-              _AnimatedDot(animation: _dot2),
-              const SizedBox(width: 4),
-              _AnimatedDot(animation: _dot3),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
 
-class _AnimatedDot extends StatelessWidget {
-  final Animation<double> animation;
+class _Dot extends StatelessWidget {
+  const _Dot({required this.animation});
 
-  const _AnimatedDot({required this.animation});
+  final Animation<double> animation;
 
   @override
   Widget build(BuildContext context) {
-    return ScaleTransition(
-      scale: Tween<double>(begin: 0.6, end: 1.0).animate(animation),
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.35, end: 1).animate(animation),
       child: Container(
-        width: 6,
-        height: 6,
+        width: 7,
+        height: 7,
         decoration: BoxDecoration(
-          color: const Color(0xFFE0B76F),
-          borderRadius: BorderRadius.circular(3),
+          color: context.colorScheme.primary,
+          shape: BoxShape.circle,
         ),
       ),
     );

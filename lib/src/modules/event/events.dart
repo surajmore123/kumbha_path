@@ -1,308 +1,349 @@
+import 'dart:math' as math;
+
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kumbha_path/main_layout.dart';
-import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_bloc.dart';
 import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_event.dart';
+import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_feed.dart';
 import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_state.dart';
+import 'package:kumbha_path/src/components/components.dart';
+import 'package:kumbha_path/src/constant/design_system/design_system.dart';
+import 'package:kumbha_path/src/constant/display_format.dart';
+import 'package:kumbha_path/src/modules/event/event_detail_screen.dart';
+import 'package:kumbha_path/src/modules/event/event_item.dart';
+import 'package:kumbha_path/src/modules/event/widgets/event_cards.dart';
+import 'package:kumbha_path/src/modules/event/widgets/event_reminder_button.dart';
 
-import 'package:kumbha_path/src/constant/app_color.dart';
-import 'package:kumbha_path/src/constant/app_responsive.dart';
-import 'package:kumbha_path/src/constant/language_helper.dart';
-import 'package:kumbha_path/src/constant/time_formator.dart';
-import 'package:kumbha_path/src/models/featured_model.dart';
-import 'package:kumbha_path/src/models/upcoming_events.dart';
-
+/// `/shahiEvents`: the featured event plus the upcoming schedule.
+///
+/// Data comes from the same requests as before, `FeaturedEvent` and
+/// `UpcomingEvent(date)` (the date picker is the API's own filter). Each
+/// uses a private AppDetailsBloc instance so one request's loading or
+/// failure no longer blanks the whole screen. Reminders keep using the
+/// app-wide AppDetailsBloc (see [EventReminderButton]).
 class ShahiEvents extends StatefulWidget {
-  const ShahiEvents({super.key});
+  const ShahiEvents({
+    super.key,
+    this.featuredBloc,
+    this.upcomingBloc,
+    this.now,
+    this.notificationsBlocked,
+  });
+
+  /// Injected in tests (any bloc of AppDetailsBloc's types). By default
+  /// each feed creates its own AppDetailsBloc.
+  final Bloc<AppDetailsEvent, AppDetailsState>? featuredBloc;
+  final Bloc<AppDetailsEvent, AppDetailsState>? upcomingBloc;
+  final DateTime Function()? now;
+  final NotificationsBlockedCheck? notificationsBlocked;
 
   @override
   State<ShahiEvents> createState() => _ShahiEventsState();
 }
 
 class _ShahiEventsState extends State<ShahiEvents> {
+  late final AppDetailsFeed _featured;
+  late final AppDetailsFeed _upcoming;
+
+  /// API date filter (`UpcomingEvent(date)`); null = default upcoming list.
+  DateTime? _date;
+
+  /// Client-side filter over the loaded events' own categories.
+  String? _category;
+
+  static const double _maxWidth = 760;
+
+  DateTime get _now => (widget.now ?? DateTime.now)();
+
+  String get _dateParam =>
+      _date == null
+          ? ''
+          : '${_date!.year.toString().padLeft(4, '0')}-'
+              '${_date!.month.toString().padLeft(2, '0')}-'
+              '${_date!.day.toString().padLeft(2, '0')}';
+
   @override
   void initState() {
     super.initState();
-    final bloc = context.read<AppDetailsBloc>();
-    bloc.add(FeaturedEvent());
-    bloc.add(UpcomingEvent());
+    _featured = AppDetailsFeed(
+      bloc: widget.featuredBloc,
+      request: FeaturedEvent.new,
+      isReady: (s) => s == AppDetailsStatus.success,
+      isFailed: (s) => s == AppDetailsStatus.failed,
+    );
+    _upcoming = AppDetailsFeed(
+      bloc: widget.upcomingBloc,
+      request: () => UpcomingEvent(_dateParam),
+      isReady: (s) => s == AppDetailsStatus.success,
+      isFailed: (s) => s == AppDetailsStatus.failed,
+    );
+    _featured.load();
+    _upcoming.load();
   }
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+  void dispose() {
+    _featured.dispose();
+    _upcoming.dispose();
+    super.dispose();
+  }
 
-    final isMobile = context.isMobile;
-    final isTablet = context.isTablet;
-    final isDesktop = context.isDesktop;
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date ?? now,
+      // Same range as before.
+      firstDate: now.subtract(const Duration(days: 1)),
+      lastDate: now.add(const Duration(days: 365)),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _date = picked;
+      _category = null;
+    });
+    _upcoming.load();
+  }
 
-    return MainLayout(
-      // prefer theme scaffold color; MainLayout may accept backgroundColor
-      backgroundColor: theme.scaffoldBackgroundColor,
-      showDefaultBottom: true,
-      ctx: 2,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: theme.appBarTheme.backgroundColor ?? cs.surface,
-        elevation: 0,
-        // leading: IconButton(
-        //   icon: Icon(Icons.arrow_back, color: cs.onSurface),
-        //   onPressed: () => Navigator.pop(context),
-        // ),
-        centerTitle: true,
-        title: Text(
-          LanguageHelper.t('events_appbar_title'),
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: cs.onSurface,
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: Icon(Icons.settings_outlined, color: cs.onSurface),
-          ),
-        ],
-      ),
-      body: ValueListenableBuilder<String>(
-        valueListenable: LanguageHelper.currentLang,
-        builder: (context, lang, _) {
-          final titleStyle = theme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-            fontSize:
-                isMobile
-                    ? 22
-                    : isTablet
-                    ? 24
-                    : 26,
-            color: cs.onBackground,
-          );
+  void _clearDate() {
+    setState(() {
+      _date = null;
+      _category = null;
+    });
+    _upcoming.load();
+  }
 
-          final bodyStyle = theme.textTheme.bodyMedium?.copyWith(
-            fontSize: isMobile ? 13.5 : 14,
-            color: cs.onBackground.withOpacity(0.9),
-            height: 1.4,
-          );
-
-          final sectionTitleStyle = theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-            fontSize: isMobile ? 16 : 18,
-            color: cs.onBackground,
-          );
-
-          return BlocConsumer<AppDetailsBloc, AppDetailsState>(
-            listener: (context, state) {},
-            builder: (context, state) {
-              if (state.status == AppDetailsStatus.loading) {
-                // CenterLoader.show(context);
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (state.eventDetailsModel == EventDetailsModel.empty) {
-                return const SizedBox();
-              }
-              return Container(
-                color: theme.scaffoldBackgroundColor,
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(
-                    horizontal:
-                        isMobile
-                            ? 16
-                            : isTablet
-                            ? 32
-                            : 56,
-                    vertical: isMobile ? 16 : 24,
-                  ),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: isDesktop ? 520 : 480,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _MainSnanCard(
-                          event: state.eventDetailsModel,
-                          titleStyle: titleStyle,
-                          bodyStyle: bodyStyle,
-                        ),
-
-                        const SizedBox(height: 10),
-
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  LanguageHelper.t('events_other_key_events'),
-                                  style: sectionTitleStyle,
-                                ),
-
-                                IconButton(
-                                  onPressed: () async {
-                                    final pickedDate = await showDatePicker(
-                                      context: context,
-                                      initialDate: DateTime.now(),
-                                      firstDate: DateTime.now().subtract(
-                                        const Duration(days: 1),
-                                      ),
-                                      lastDate: DateTime.now().add(
-                                        const Duration(days: 365),
-                                      ),
-                                    );
-                                    if (pickedDate != null) {
-                                      final formattedDate =
-                                          pickedDate
-                                              .toIso8601String()
-                                              .split('T')
-                                              .first;
-
-                                      context.read<AppDetailsBloc>().add(
-                                        UpcomingEvent(formattedDate),
-                                      );
-                                    }
-                                  },
-                                  icon: const Icon(
-                                    Icons.calendar_month_outlined,
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            IconButton(
-                              icon: const Icon(Icons.refresh),
-                              onPressed: () {
-                                context.read<AppDetailsBloc>().add(
-                                  UpcomingEvent(),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-
-                        // ========= LIST OF OTHER EVENTS =========
-                        if (state.upcomingEvents.isNotEmpty) ...[
-                          ListView.separated(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: state.upcomingEvents.length,
-                            separatorBuilder:
-                                (_, __) => const SizedBox(height: 12),
-                            itemBuilder: (context, index) {
-                              return OtherEventRow(
-                                event: state.upcomingEvents[index],
-                              );
-                            },
-                          ),
-                        ],
-
-                        // _OtherEventRow(
-                        //   icon: Icons.wb_sunny_outlined,
-                        //   iconBgColor: cs.primaryContainer.withOpacity(0.14),
-                        //   titleKey: 'event_ganga_aarti_title',
-                        //   descriptionKey: 'event_ganga_aarti_description',
-                        // ),
-                        // const SizedBox(height: 12),
-
-                        // _OtherEventRow(
-                        //   icon: Icons.groups_2_outlined,
-                        //   iconBgColor: cs.primaryContainer.withOpacity(0.14),
-                        //   titleKey: 'event_sant_samagam_title',
-                        //   descriptionKey: 'event_sant_samagam_description',
-                        // ),
-                        // const SizedBox(height: 12),
-
-                        // _OtherEventRow(
-                        //   icon: Icons.music_note_outlined,
-                        //   iconBgColor: cs.primaryContainer.withOpacity(0.14),
-                        //   titleKey: 'event_cultural_evening_title',
-                        //   descriptionKey: 'event_cultural_evening_description',
-                        // ),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          );
-        },
+  void _open(EventItem event) {
+    Navigator.push(
+      context,
+      EventDetailScreen.route(
+        event,
+        // Same clock as the list, so phases and countdowns agree.
+        now: _now,
+        notificationsBlocked: widget.notificationsBlocked,
       ),
     );
   }
-}
 
-class OtherEventRow extends StatelessWidget {
-  final EventSummaryModel event;
-
-  const OtherEventRow({super.key, required this.event});
+  String get _locale =>
+      EasyLocalization.of(context)?.locale.languageCode ??
+      Localizations.localeOf(context).languageCode;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isMobile = context.isMobile;
-
-    return BlocBuilder<AppDetailsBloc, AppDetailsState>(
-      builder: (context, state) {
-        final isEnabled = state.reminderStatus[event.eventId] ?? false;
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: cs.primaryContainer.withOpacity(0.14),
-                borderRadius: BorderRadius.circular(14),
+    final locale = _locale;
+    return MainLayout(
+      showDefaultBottom: true,
+      ctx: 2,
+      appBar: AppAppBar(
+        title: 'events_appbar_title'.tr(),
+        actions: [
+          ValueListenableBuilder<FeedStatus>(
+            valueListenable: _upcoming.status,
+            builder:
+                (context, status, _) => AppIconButton(
+                  icon: Icons.calendar_month_outlined,
+                  tooltip: 'events_pick_date'.tr(),
+                  onPressed: status == FeedStatus.loading ? null : _pickDate,
+                ),
+          ),
+          AppSpacing.gapXs,
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: () => Future.wait([_featured.load(), _upcoming.load()]),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final side = math.max(
+              AppSpacing.pageGutter,
+              (constraints.maxWidth - _maxWidth) / 2,
+            );
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(
+                side,
+                AppSpacing.sm,
+                side,
+                AppSpacing.huge,
               ),
-              child: Icon(Icons.event_outlined, color: cs.primary, size: 24),
-            ),
-            const SizedBox(width: 12),
+              children: [
+                Text(
+                  'events_intro'.tr(),
+                  style: context.textTheme.bodyLarge?.copyWith(
+                    color: context.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                AppSpacing.gapLg,
+                _featuredSection(locale),
+                AppSpacing.gapXxl,
+                AppSectionHeader(title: 'events_schedule'.tr()),
+                AppSpacing.gapMd,
+                _scheduleSection(locale),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
 
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _featuredSection(String locale) {
+    return ValueListenableBuilder<FeedStatus>(
+      valueListenable: _featured.status,
+      builder: (context, status, _) {
+        switch (status) {
+          case FeedStatus.loading:
+            return const _Skeleton(height: 280);
+          case FeedStatus.failed:
+            return AppCard(
+              variant: AppCardVariant.filled,
+              child: Row(
                 children: [
-                  Text(
-                    event.eventName ?? "",
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontSize: isMobile ? 15 : 16,
+                  Icon(
+                    Icons.cloud_off_rounded,
+                    color: context.colorScheme.onSurfaceVariant,
+                  ),
+                  AppSpacing.gapMd,
+                  Expanded(
+                    child: Text(
+                      'events_featured_failed'.tr(),
+                      style: context.textTheme.bodyMedium,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    event.shortDescription ?? "",
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontSize: isMobile ? 13 : 14,
-                      color: cs.onBackground.withOpacity(0.72),
-                    ),
+                  TextButton(
+                    onPressed: _featured.load,
+                    child: Text('common_retry'.tr()),
                   ),
                 ],
               ),
-            ),
+            );
+          case FeedStatus.ready:
+            final event = EventItem.fromFeatured(
+              _featured.bloc.state.eventDetailsModel,
+            );
+            // Nothing featured: no placeholder card.
+            if (!event.hasName) return const SizedBox.shrink();
+            return FeaturedEventPanel(
+              event: event,
+              locale: locale,
+              now: _now,
+              onOpen: () => _open(event),
+              notificationsBlocked: widget.notificationsBlocked,
+            );
+        }
+      },
+    );
+  }
 
-            GestureDetector(
-              onTap: () {
-                final bloc = context.read<AppDetailsBloc>();
-                bloc.add(
-                  ReminderToggleEvent(
-                    action: isEnabled ? "DISABLE" : "ENABLE",
+  Widget _scheduleSection(String locale) {
+    return ListenableBuilder(
+      // Re-filter when the featured event (excluded from the list) loads.
+      listenable: Listenable.merge([_upcoming.status, _featured.status]),
+      builder: (context, _) {
+        final status = _upcoming.status.value;
+        final filters = _ActiveDateChip(
+          date: _date,
+          locale: locale,
+          onClear: _clearDate,
+        );
 
-                    eventId: event.eventId!,
-                  ),
-                );
-              },
-              child: Icon(
-                isEnabled
-                    ? Icons.notifications_off_outlined
-                    : Icons.notifications_active_outlined,
-
-                color: cs.primary,
-                size: 24,
+        if (status == FeedStatus.loading) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              filters,
+              const _Skeleton(height: 96),
+              AppSpacing.gapMd,
+              const _Skeleton(height: 96),
+            ],
+          );
+        }
+        if (status == FeedStatus.failed) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              filters,
+              AppCard(
+                padding: EdgeInsets.zero,
+                child: AppErrorView(compact: true, onRetry: _upcoming.load),
               ),
-            ),
+            ],
+          );
+        }
+
+        final featuredId =
+            _featured.status.value == FeedStatus.ready
+                ? EventItem.fromFeatured(
+                  _featured.bloc.state.eventDetailsModel,
+                ).id
+                : null;
+        final events = dedupeEvents(
+          sortChronologically([
+            for (final e in _upcoming.bloc.state.upcomingEvents)
+              EventItem.fromSummary(e),
+          ]),
+          excludeId: featuredId,
+        );
+        final categories =
+            <String>{
+              for (final e in events)
+                if (e.filterCategory != null) e.filterCategory!,
+            }.toList();
+        final category = categories.contains(_category) ? _category : null;
+        final visible =
+            category == null
+                ? events
+                : events.where((e) => e.filterCategory == category).toList();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            filters,
+            if (categories.length >= 2) ...[
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: [
+                  ChoiceChip(
+                    label: Text('events_all_categories'.tr()),
+                    selected: category == null,
+                    onSelected: (_) => setState(() => _category = null),
+                  ),
+                  for (final c in categories)
+                    ChoiceChip(
+                      label: Text(c),
+                      selected: category == c,
+                      onSelected: (_) => setState(() => _category = c),
+                    ),
+                ],
+              ),
+              AppSpacing.gapLg,
+            ],
+            if (visible.isEmpty)
+              AppCard(
+                padding: EdgeInsets.zero,
+                child: AppEmptyState(
+                  compact: true,
+                  icon: Icons.event_available_outlined,
+                  title:
+                      _date == null
+                          ? 'dash_upcoming_empty'.tr()
+                          : 'events_empty_on_date'.tr(
+                            args: [formatEventDate(_dateParam, locale) ?? ''],
+                          ),
+                  actionLabel: _date == null ? null : 'events_clear_date'.tr(),
+                  onAction: _date == null ? null : _clearDate,
+                ),
+              )
+            else
+              _Timeline(
+                events: visible,
+                locale: locale,
+                now: _now,
+                onOpen: _open,
+                notificationsBlocked: widget.notificationsBlocked,
+              ),
           ],
         );
       },
@@ -310,174 +351,121 @@ class OtherEventRow extends StatelessWidget {
   }
 }
 
-class _MainSnanCard extends StatelessWidget {
-  final TextStyle? titleStyle;
-  final TextStyle? bodyStyle;
-  final EventDetailsModel event;
-
-  const _MainSnanCard({
-    required this.titleStyle,
-    required this.bodyStyle,
-    required this.event,
+/// The API date filter, shown as a removable chip while active.
+class _ActiveDateChip extends StatelessWidget {
+  const _ActiveDateChip({
+    required this.date,
+    required this.locale,
+    required this.onClear,
   });
+
+  final DateTime? date;
+  final String locale;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    final applyGradient = true;
-
-    return Container(
-      padding: EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient:
-            applyGradient ? buildThemeGradient(context, isPrimary: true) : null,
-        // gradient: LinearGradient(
-        //   colors: [
-        //     cs.primary,
-        //     cs.primaryContainer,
-        //   ],
-        //   begin: Alignment.topLeft,
-        //   end: Alignment.bottomRight,
-        // ),
-        borderRadius: BorderRadius.circular(26),
-        boxShadow: [
-          BoxShadow(
-            color: cs.primary.withOpacity(0.16),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+    final d = date;
+    if (d == null) return const SizedBox.shrink();
+    final label =
+        formatEventDate(
+          '${d.year.toString().padLeft(4, '0')}-'
+          '${d.month.toString().padLeft(2, '0')}-'
+          '${d.day.toString().padLeft(2, '0')}',
+          locale,
+        ) ??
+        '';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: InputChip(
+          avatar: const Icon(Icons.event_outlined, size: 18),
+          label: Text(label),
+          onDeleted: onClear,
+          deleteButtonTooltipMessage: 'events_clear_date'.tr(),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            //padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(
-              color: cs.onPrimary.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(20),
+    );
+  }
+}
+
+/// Events grouped by day in chronological order; undated events last.
+class _Timeline extends StatelessWidget {
+  const _Timeline({
+    required this.events,
+    required this.locale,
+    required this.now,
+    required this.onOpen,
+    this.notificationsBlocked,
+  });
+
+  final List<EventItem> events;
+  final String locale;
+  final DateTime now;
+  final ValueChanged<EventItem> onOpen;
+  final NotificationsBlockedCheck? notificationsBlocked;
+
+  String? _relative(EventItem e) => switch (eventTiming(e.date, now)) {
+    EventToday() => 'dash_countdown_today'.tr(),
+    EventTomorrow() => 'dash_countdown_tomorrow'.tr(),
+    EventInDays(:final days) => 'dash_countdown_days'.tr(args: ['$days']),
+    _ => null,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final groups = <({String key, List<EventItem> items})>[];
+    for (final e in events) {
+      final key = e.day?.toIso8601String() ?? 'tba';
+      if (groups.isEmpty || groups.last.key != key) {
+        groups.add((key: key, items: [e]));
+      } else {
+        groups.last.items.add(e);
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var g = 0; g < groups.length; g++) ...[
+          if (g > 0) AppSpacing.gapLg,
+          TimelineDateHeader(
+            label:
+                formatEventDate(groups[g].items.first.date, locale) ??
+                'events_date_tba'.tr(),
+            relative: _relative(groups[g].items.first),
+          ),
+          for (var i = 0; i < groups[g].items.length; i++)
+            TimelineEventTile(
+              event: groups[g].items[i],
+              locale: locale,
+              now: now,
+              isLast: i == groups[g].items.length - 1,
+              onOpen: () => onOpen(groups[g].items[i]),
+              notificationsBlocked: notificationsBlocked,
             ),
-            child: Text(
-              '${formatEventDate(event.eventDate)} • '
-              '${formatEventTimeRange(startTime: event.startTime, endTime: event.endTime)}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: cs.onPrimary,
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Text(
-          //   LanguageHelper.t('shahi_snan_title'),
-          //   style: titleStyle?.copyWith(color: cs.onPrimary),
-          // ),
-          Text(
-            event.eventName.toString(),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: cs.onPrimary,
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          Row(
-            children: [
-              Icon(Icons.location_on_outlined, size: 18, color: cs.onPrimary),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  event.locationName.toString(),
-                  // LanguageHelper.t('shahi_snan_location'),
-                  style: bodyStyle?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: cs.onPrimary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 10),
-
-          Text(
-            // LanguageHelper.t('shahi_snan_description'),
-            event.shortDescription.toString(),
-            style: bodyStyle?.copyWith(color: cs.onPrimary.withOpacity(0.92)),
-          ),
-
-          const SizedBox(height: 16),
-
-          BlocBuilder<AppDetailsBloc, AppDetailsState>(
-            builder: (context, state) {
-              final isEnabled = state.reminderStatus[event.eventId] ?? false;
-              return Align(
-                alignment: Alignment.centerRight,
-                child: GestureDetector(
-                  onTap: () {
-                    final bloc = context.read<AppDetailsBloc>();
-                    bloc.add(
-                      ReminderToggleEvent(
-                        action: isEnabled ? "DISABLE" : "ENABLE",
-
-                        eventId: event.eventId!,
-                      ),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient:
-                          applyGradient
-                              ? buildThemeGradient(context, isPrimary: true)
-                              : null,
-                      borderRadius: BorderRadius.circular(22),
-                      boxShadow: [
-                        BoxShadow(
-                          color: cs.secondary.withOpacity(0.18),
-                          blurRadius: 6,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isEnabled
-                              ? Icons.notifications_off_outlined
-                              : Icons.notifications_active_outlined,
-
-                          color: cs.onSecondary,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          isEnabled
-                              ? 'Disable Event'
-                              : LanguageHelper.t('events_remind_me'),
-                          style: TextStyle(
-                            color: cs.onPrimary,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
         ],
+      ],
+    );
+  }
+}
+
+class _Skeleton extends StatelessWidget {
+  const _Skeleton({required this.height});
+
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'common_loading'.tr(),
+      child: Container(
+        height: height,
+        decoration: BoxDecoration(
+          color: context.colorScheme.surfaceContainerHigh,
+          borderRadius: AppRadius.cardAll,
+        ),
       ),
     );
   }

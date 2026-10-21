@@ -1,20 +1,30 @@
+import 'dart:async';
+import 'dart:math' as math;
+
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:http/http.dart';
 import 'package:kumbha_path/main_layout.dart';
 import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_bloc.dart';
 import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_event.dart';
 import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_state.dart';
-import 'package:kumbha_path/src/constant/app_color.dart';
-
-import 'package:kumbha_path/src/constant/app_responsive.dart';
-import 'package:kumbha_path/src/constant/language_helper.dart';
-import 'package:kumbha_path/src/constant/time_formator.dart';
+import 'package:kumbha_path/src/components/components.dart';
+import 'package:kumbha_path/src/constant/design_system/design_system.dart';
 import 'package:kumbha_path/src/models/journal_list.dart';
 import 'package:kumbha_path/src/modules/journel/create_my_journer.dart';
 import 'package:kumbha_path/src/modules/journel/daily_ai_reflection.dart';
 import 'package:kumbha_path/src/modules/journel/journal_details.dart';
+import 'package:kumbha_path/src/modules/journel/widgets/journal_widgets.dart';
 
+enum _Pending { none, list, more, reflection, prompt, detail }
+
+/// `/journal`: the pilgrim's MyKumbh Journal.
+///
+/// Uses the app-wide AppDetailsBloc exactly as before: `GetJournalEntry`
+/// (paged), `GetJournalDetail` → detail screen, `GetAiReflectionEvent` →
+/// reflection screen, `GetAiPromptEvent` → prompt sheet. That bloc shares
+/// one status across requests, so each action here tracks which request
+/// it is waiting for and reacts only to that one.
 class JournerScreen extends StatefulWidget {
   const JournerScreen({super.key});
 
@@ -24,535 +34,566 @@ class JournerScreen extends StatefulWidget {
 
 class _JournerScreenState extends State<JournerScreen> {
   int currentPage = 1;
+  _Pending _pending = _Pending.none;
+  String? _pendingEntryId;
+  Timer? _timeout;
+  bool _listFailed = false;
+  bool _moreFailed = false;
+
+  static const double _maxWidth = 760;
+  static const Duration _requestTimeout = Duration(seconds: 30);
+
   @override
   void initState() {
     super.initState();
-    context.read<AppDetailsBloc>().add(GetJournalEntry(page: 1));
+    // After the first frame, so the listener below is subscribed before
+    // the request can complete.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadFirstPage();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timeout?.cancel();
+    super.dispose();
+  }
+
+  void _start(_Pending kind, AppDetailsEvent event, {String? entryId}) {
+    if (_pending != _Pending.none) return; // one request at a time
+    _timeout?.cancel();
+    setState(() {
+      _pending = kind;
+      _pendingEntryId = entryId;
+      if (kind == _Pending.list) _listFailed = false;
+      if (kind == _Pending.more) _moreFailed = false;
+    });
+    _timeout = Timer(_requestTimeout, () => _fail(kind));
+    context.read<AppDetailsBloc>().add(event);
+  }
+
+  void _done() {
+    _timeout?.cancel();
+    _pending = _Pending.none;
+    _pendingEntryId = null;
+  }
+
+  void _fail(_Pending kind) {
+    if (!mounted || _pending != kind) return;
+    setState(() {
+      _done();
+      switch (kind) {
+        case _Pending.list:
+          _listFailed = true;
+        case _Pending.more:
+          _moreFailed = true;
+          currentPage--;
+        case _Pending.reflection:
+          _snack('journal_ai_failed'.tr());
+        case _Pending.prompt:
+          _snack('journal_prompt_failed'.tr());
+        case _Pending.detail:
+          _snack('journal_open_failed'.tr());
+        case _Pending.none:
+          break;
+      }
+    });
+  }
+
+  void _snack(String message) {
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _loadFirstPage() {
+    currentPage = 1;
+    _start(_Pending.list, GetJournalEntry(page: 1));
+  }
+
+  void _loadMore() {
+    currentPage++;
+    _start(_Pending.more, GetJournalEntry(page: currentPage));
+  }
+
+  void _onState(BuildContext context, AppDetailsState state) {
+    final pending = _pending;
+    switch (state.status) {
+      case AppDetailsStatus.journalEntryoaded
+          when pending == _Pending.list || pending == _Pending.more:
+        setState(_done);
+      case AppDetailsStatus.journalEntryError
+          when pending == _Pending.list || pending == _Pending.more:
+        _fail(pending);
+      case AppDetailsStatus.aiReflectionLoaded
+          when pending == _Pending.reflection:
+        setState(_done);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (_) => DailyReflectionScreen(
+                  aiReflection: state.aiReflection ?? '',
+                  message: state.message ?? '',
+                ),
+          ),
+        );
+      case AppDetailsStatus.aiReflectionError
+          when pending == _Pending.reflection:
+        _fail(pending);
+      case AppDetailsStatus.aiPromptLoaded when pending == _Pending.prompt:
+        setState(_done);
+        _showPromptSheet(state.aiPrompt ?? '');
+      case AppDetailsStatus.aiPromptError when pending == _Pending.prompt:
+        _fail(pending);
+      case AppDetailsStatus.journalDetailLoaded when pending == _Pending.detail:
+        setState(_done);
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const JournalDetails()),
+        );
+      case AppDetailsStatus.failed when pending == _Pending.detail:
+        _fail(pending);
+      default:
+        break;
+    }
+  }
+
+  /// A blank entry. (It no longer pre-fills a prompt or reflection fetched
+  /// earlier for something else.)
+  void _newEntry({String? aiPrompt, String? aiReflection}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => NewJournalEntryScreen(
+              aiPrompt: aiPrompt,
+              aiReflection: aiReflection,
+            ),
+      ),
+    );
+  }
+
+  void _showPromptSheet(String prompt) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder:
+          (sheet) => SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xl,
+                0,
+                AppSpacing.xl,
+                AppSpacing.xl,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'journal_prompt_heading'.tr(),
+                    style: sheet.textTheme.titleLarge,
+                  ),
+                  AppSpacing.gapLg,
+                  AiContentCard(
+                    heading: 'journal_prompt_from_ai'.tr(),
+                    child: Text(
+                      prompt.trim().isEmpty
+                          ? 'journal_prompt_failed'.tr()
+                          : prompt,
+                      style: sheet.textTheme.bodyLarge?.copyWith(height: 1.5),
+                    ),
+                  ),
+                  AppSpacing.gapXl,
+                  AppButton(
+                    label: 'journal_add_to_entry'.tr(),
+                    leadingIcon: Icons.edit_note_rounded,
+                    onPressed:
+                        prompt.trim().isEmpty
+                            ? null
+                            : () {
+                              Navigator.pop(sheet);
+                              _newEntry(aiPrompt: prompt);
+                            },
+                  ),
+                ],
+              ),
+            ),
+          ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    final isMobile = context.isMobile;
-    final isTablet = context.isTablet;
-    final isDesktop = context.isDesktop;
-
-    void _showAiPromptBottomSheet(
-      BuildContext context, {
-      required String prompt,
-      required String message,
-    }) {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        builder: (_) {
-          final theme = Theme.of(context);
-          final cs = theme.colorScheme;
-
-          return Padding(
-            padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 24,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                /// MESSAGE
-                Text(
-                  message,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: cs.onSurface,
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                /// PROMPT
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: cs.surfaceVariant,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    prompt,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      height: 1.4,
-                      color: cs.onSurface,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                /// ADD TO JOURNAL BUTTON
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context); // close bottom sheet
-
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (_) => NewJournalEntryScreen(aiPrompt: prompt),
-                        ),
-                      );
-                    },
-                    child: const Text("Add to Journal Entry"),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    }
+    final locale =
+        EasyLocalization.of(context)?.locale.languageCode ??
+        Localizations.localeOf(context).languageCode;
+    final text = context.textTheme;
 
     return MainLayout(
       showDefaultBottom: true,
       ctx: 3,
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-         automaticallyImplyLeading: false,
-        backgroundColor: theme.appBarTheme.backgroundColor ?? cs.surface,
-        elevation: 0,
-        centerTitle: true,
-        title: Text(
-          LanguageHelper.t('journal_title'),
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: cs.onSurface,
-          ),
-        ),
-      ),
-      body: ValueListenableBuilder<String>(
-        valueListenable: LanguageHelper.currentLang,
-        builder: (context, lang, _) {
-          final bodyStyle = theme.textTheme.bodyMedium?.copyWith(
-            fontSize: isMobile ? 13.5 : 14,
-            color: cs.onBackground.withOpacity(0.9),
-            height: 1.4,
-          );
-
-          final sectionTitleStyle = theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-            fontSize: isMobile ? 16 : 18,
-            color: cs.onPrimary,
-          );
-
-          return BlocConsumer<AppDetailsBloc, AppDetailsState>(
-            listener: (context, state) {
-              if (state.status == AppDetailsStatus.aiReflectionLoaded) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder:
-                        (context) => DailyReflectionScreen(
-                          aiReflection: state.aiReflection.toString(),
-                          message: state.message.toString(),
-                        ),
+      appBar: AppAppBar(title: 'dash_journal_title'.tr()),
+      body: BlocConsumer<AppDetailsBloc, AppDetailsState>(
+        listener: _onState,
+        buildWhen: (a, b) => a.journalEntryListModel != b.journalEntryListModel,
+        builder: (context, state) {
+          final list = state.journalEntryListModel;
+          final entries = list?.results ?? const <JournalEntryModel>[];
+          return RefreshIndicator(
+            onRefresh: () async => _loadFirstPage(),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final side = math.max(
+                  AppSpacing.pageGutter,
+                  (constraints.maxWidth - _maxWidth) / 2,
+                );
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(
+                    side,
+                    AppSpacing.sm,
+                    side,
+                    AppSpacing.huge,
                   ),
-                );
-              } else if (state.status == AppDetailsStatus.aiReflectionError) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(state.message.toString())),
-                );
-              }
-
-              if (state.status == AppDetailsStatus.aiPromptLoaded) {
-                _showAiPromptBottomSheet(
-                  context,
-                  prompt: state.aiPrompt.toString(),
-                  message: state.message.toString(),
-                );
-              }
-
-              if (state.status == AppDetailsStatus.aiPromptError) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(state.message.toString())),
-                );
-              }
-
-              if (state.status == AppDetailsStatus.journalDetailLoaded) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => JournalDetails()),
-                );
-              }
-            },
-            builder: (context, state) {
-              final journalModel = state.journalEntryListModel;
-
-              return Container(
-                color: theme.scaffoldBackgroundColor,
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(
-                    horizontal:
-                        isMobile
-                            ? 16
-                            : isTablet
-                            ? 32
-                            : 56,
-                    vertical: isMobile ? 16 : 24,
-                  ),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: isDesktop ? 520 : 480,
+                  children: [
+                    Text(
+                      'journal_intro'.tr(),
+                      style: text.bodyLarge?.copyWith(
+                        color: context.colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    AppSpacing.gapLg,
+                    Wrap(
+                      spacing: AppSpacing.md,
+                      runSpacing: AppSpacing.md,
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _JournalToggleButton(
-                                useGradient: true,
-                                labelKey: 'journal_ai_reflection',
-                                isPrimary: false,
-                                onTap: () {
-                                  final bloc = context.read<AppDetailsBloc>();
-                                  bloc.add(GetAiReflectionEvent());
-                                  // Navigator.push(
-                                  //   context,
-                                  //   MaterialPageRoute(
-                                  //     builder: (context) => DailyReflectionScreen(
-                                  //       aiReflection: bloc.state.aiReflection,
-                                  //       message: bloc.state.message,
-                                  //     ),
-                                  //   ),
-                                  // );
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _JournalToggleButton(
-                                labelKey: 'journal_add_entry',
-                                isPrimary: true,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder:
-                                          (context) => NewJournalEntryScreen(
-                                            aiPrompt: state.aiPrompt,
-                                            aiReflection: state.aiReflection,
-                                          ),
-                                    ),
-                                  );
-                                  //  e
-                                  //       Navigator.pushNamed(
-                                  //         context,
-                                  //         '/myJournalEntry',
-                                  //       );
-                                },
-                              ),
-                            ),
-                          ],
+                        AppButton(
+                          label: 'journal_add_entry'.tr(),
+                          leadingIcon: Icons.edit_note_rounded,
+                          expand: false,
+                          onPressed: _newEntry,
                         ),
-
-                        const SizedBox(height: 20),
-
-                        // ======= AI PROMPT CARD =======
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            gradient: buildThemeGradient(
-                              context,
-                              isPrimary: true,
-                            ),
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                LanguageHelper.t('journal_prompt_title'),
-                                style: sectionTitleStyle,
+                        AppButton.secondary(
+                          label: 'journal_ai_reflection'.tr(),
+                          leadingIcon: Icons.auto_awesome,
+                          expand: false,
+                          isLoading: _pending == _Pending.reflection,
+                          onPressed:
+                              () => _start(
+                                _Pending.reflection,
+                                GetAiReflectionEvent(),
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                LanguageHelper.t('journal_prompt_subtitle'),
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontSize: isMobile ? 13.5 : 14,
-                                  color: cs.onPrimary.withOpacity(0.92),
-                                  height: 1.4,
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: _PrimaryJournalButton(
-                                  labelKey: 'journal_get_ai_prompt',
-                                  onTap: () {
-                                    final bloc = context.read<AppDetailsBloc>();
-                                    bloc.add(GetAiPromptEvent());
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
-
-                        const SizedBox(height: 24),
-
-                        // ======= PAST ENTRIES TITLE =======
-                        Text(
-                          LanguageHelper.t('journal_past_entries'),
-                          style: TextStyle(color: blackColor),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        if (journalModel?.results == null ||
-                            journalModel!.results.isEmpty)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            child: Center(
-                              child: Text(
-                                "No entries yet",
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ),
-                          )
-                        else
-                          Column(
-                            children: [
-                              ...journalModel.results.map((entry) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: _DynamicJournalCard(
-                                    entry: entry,
-                                    ontap: () {
-                                      context.read<AppDetailsBloc>().add(
-                                        GetJournalDetail(
-                                          id: entry.id.toString(),
-                                        ),
-                                      );
-                                      // Navigator.push(
-                                      //   context,
-                                      //   MaterialPageRoute(
-                                      //     builder:
-                                      //         (context) => JournalDetails(),
-                                      //   ),
-                                      // );
-                                    },
-                                  ),
-                                );
-                              }).toList(),
-
-                              /// Show More Button
-                              if (journalModel.next != null)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  child: ElevatedButton(
-                                    onPressed: () {
-                                      currentPage++;
-                                      context.read<AppDetailsBloc>().add(
-                                        GetJournalEntry(page: currentPage),
-                                      );
-                                    },
-                                    child: const Text("Show More"),
-                                  ),
-                                ),
-                            ],
-                          ),
-
-                        const SizedBox(height: 24),
                       ],
                     ),
-                  ),
-                ),
-              );
-            },
+                    AppSpacing.gapXl,
+                    _PromptCard(
+                      loading: _pending == _Pending.prompt,
+                      onPressed:
+                          () => _start(_Pending.prompt, GetAiPromptEvent()),
+                    ),
+                    AppSpacing.gapXxl,
+                    AppSectionHeader(title: 'journal_past_entries'.tr()),
+                    AppSpacing.gapMd,
+                    ..._entries(entries, list?.next != null, locale),
+                  ],
+                );
+              },
+            ),
           );
         },
       ),
     );
   }
-}
 
-class _JournalToggleButton extends StatelessWidget {
-  final String labelKey;
-  final bool isPrimary;
-  final bool useGradient; // NEW
-  final VoidCallback? onTap;
-
-  const _JournalToggleButton({
-    required this.labelKey,
-    required this.isPrimary,
-    this.useGradient = false,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final label = LanguageHelper.t(labelKey);
-    final cs = Theme.of(context).colorScheme;
-    final bool applyGradient = useGradient || isPrimary;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          gradient:
-              applyGradient
-                  ? buildThemeGradient(context, isPrimary: true)
-                  : null,
-          color: applyGradient ? null : cs.surfaceVariant,
-          boxShadow:
-              applyGradient
-                  ? [
-                    BoxShadow(
-                      color:
-                          isDark
-                              ? cs.primary.withOpacity(0.14)
-                              : cs.primary.withOpacity(0.18),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ]
-                  : null,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              isPrimary ? Icons.add_circle_outline : Icons.auto_awesome,
-              size: 18,
-              color: applyGradient ? cs.onPrimary : cs.primary,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: applyGradient ? cs.onPrimary : cs.primary,
+  List<Widget> _entries(
+    List<JournalEntryModel> entries,
+    bool hasMore,
+    String locale,
+  ) {
+    if (entries.isEmpty) {
+      if (_pending == _Pending.list) {
+        return [
+          for (var i = 0; i < 3; i++) ...[
+            Container(
+              height: 104,
+              decoration: BoxDecoration(
+                color: context.colorScheme.surfaceContainerHigh,
+                borderRadius: AppRadius.cardAll,
               ),
             ),
+            AppSpacing.gapMd,
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PrimaryJournalButton extends StatelessWidget {
-  final String labelKey;
-  final VoidCallback? onTap;
-
-  const _PrimaryJournalButton({required this.labelKey, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final label = LanguageHelper.t(labelKey);
-    final cs = Theme.of(context).colorScheme;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          gradient: buildThemeGradient(context, isPrimary: true),
-          boxShadow: [
-            BoxShadow(
-              color:
-                  Theme.of(context).brightness == Brightness.dark
-                      ? cs.primary.withOpacity(0.18)
-                      : cs.primary.withOpacity(0.18),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
+        ];
+      }
+      if (_listFailed) {
+        // A failed load is never shown as an empty journal.
+        return [
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: AppErrorView(
+              compact: true,
+              title: 'journal_load_failed'.tr(),
+              onRetry: _loadFirstPage,
             ),
-          ],
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: cs.onPrimary,
-            fontWeight: FontWeight.w700,
-            fontSize: 14,
+          ),
+        ];
+      }
+      return [
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: AppEmptyState(
+            compact: true,
+            icon: Icons.menu_book_outlined,
+            title: 'journal_no_entries'.tr(),
+            message: 'dash_journal_empty'.tr(),
+            actionLabel: 'journal_add_entry'.tr(),
+            actionIcon: Icons.edit_note_rounded,
+            onAction: _newEntry,
           ),
         ),
+      ];
+    }
+
+    // Grouped by month, in the API's order.
+    final widgets = <Widget>[];
+    String? lastMonth;
+    for (final e in entries) {
+      final t = journalTime(e.createdAt);
+      final month = t == null ? '' : journalMonthLabel(t, locale);
+      if (month != lastMonth) {
+        if (widgets.isNotEmpty) widgets.add(AppSpacing.gapLg);
+        if (month.isNotEmpty) {
+          widgets.add(
+            Semantics(
+              header: true,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Text(month, style: context.textTheme.titleSmall),
+              ),
+            ),
+          );
+        }
+        lastMonth = month;
+      }
+      widgets
+        ..add(
+          _EntryCard(
+            entry: e,
+            locale: locale,
+            loading:
+                _pending == _Pending.detail &&
+                _pendingEntryId == e.id.toString(),
+            onTap:
+                () => _start(
+                  _Pending.detail,
+                  GetJournalDetail(id: e.id.toString()),
+                  entryId: e.id.toString(),
+                ),
+          ),
+        )
+        ..add(AppSpacing.gapMd);
+    }
+
+    if (hasMore || _moreFailed) {
+      widgets.add(
+        Center(
+          child: Column(
+            children: [
+              if (_moreFailed)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: Text(
+                    'journal_more_failed'.tr(),
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: context.colorScheme.error,
+                    ),
+                  ),
+                ),
+              AppButton.outlined(
+                label:
+                    _moreFailed
+                        ? 'common_retry'.tr()
+                        : 'journal_show_more'.tr(),
+                leadingIcon: Icons.expand_more_rounded,
+                expand: false,
+                isLoading: _pending == _Pending.more,
+                onPressed: _loadMore,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return widgets;
+  }
+}
+
+class _PromptCard extends StatelessWidget {
+  const _PromptCard({required this.loading, required this.onPressed});
+
+  final bool loading;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colorScheme;
+    final text = context.textTheme;
+    return AppCard(
+      variant: AppCardVariant.filled,
+      color: colors.primaryContainer,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.lightbulb_outline, color: colors.onPrimaryContainer),
+              AppSpacing.gapSm,
+              Expanded(
+                child: Text(
+                  'journal_prompt_heading'.tr(),
+                  style: text.titleMedium?.copyWith(
+                    color: colors.onPrimaryContainer,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          AppSpacing.gapXs,
+          Text(
+            'journal_prompt_subtitle'.tr(),
+            style: text.bodyMedium?.copyWith(color: colors.onPrimaryContainer),
+          ),
+          AppSpacing.gapMd,
+          AppButton.outlined(
+            label: 'journal_get_ai_prompt'.tr(),
+            leadingIcon: Icons.auto_awesome,
+            expand: false,
+            isLoading: loading,
+            onPressed: onPressed,
+          ),
+        ],
       ),
     );
   }
 }
 
-class _DynamicJournalCard extends StatelessWidget {
-  final JournalEntryModel entry;
-  final VoidCallback ontap;
+class _EntryCard extends StatelessWidget {
+  const _EntryCard({
+    required this.entry,
+    required this.locale,
+    required this.loading,
+    required this.onTap,
+  });
 
-  const _DynamicJournalCard({required this.entry, required this.ontap});
+  final JournalEntryModel entry;
+  final String locale;
+  final bool loading;
+  final VoidCallback onTap;
+
+  static const double _thumb = 64;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-  
+    final colors = context.colorScheme;
+    final text = context.textTheme;
+    final title = (entry.title ?? '').trim();
+    final notes = (entry.notes ?? '').trim();
+    final photo = (entry.photo ?? '').trim();
+    final t = journalTime(entry.createdAt);
+    final badge = t == null ? null : journalDayBadge(t, locale);
 
-    return GestureDetector(
-      onTap: ontap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          gradient: buildThemeGradient(context, isPrimary: true),
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              DateTimeHelper.formatAlertTime(entry.createdAt ?? ""),
-
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: cs.onPrimary,
-              ),
+    return AppCard(
+      onTap: loading ? null : onTap,
+      semanticLabel: title.isEmpty ? 'journal_untitled'.tr() : title,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 52,
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: colors.primaryContainer,
+              borderRadius: AppRadius.mdAll,
             ),
-            const SizedBox(height: 6),
-            Text(
-              entry.notes ?? "",
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: cs.onPrimary),
+            child:
+                badge == null
+                    ? Icon(
+                      Icons.menu_book_outlined,
+                      color: colors.onPrimaryContainer,
+                    )
+                    : Column(
+                      children: [
+                        Text(
+                          badge.day,
+                          style: text.titleLarge?.copyWith(
+                            color: colors.onPrimaryContainer,
+                            fontWeight: FontWeight.w700,
+                            height: 1.1,
+                          ),
+                        ),
+                        Text(
+                          badge.weekday,
+                          style: text.labelSmall?.copyWith(
+                            color: colors.onPrimaryContainer,
+                          ),
+                        ),
+                      ],
+                    ),
+          ),
+          AppSpacing.gapMd,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title.isEmpty ? 'journal_untitled'.tr() : title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.titleMedium?.copyWith(
+                    fontStyle: title.isEmpty ? FontStyle.italic : null,
+                  ),
+                ),
+                if (notes.isNotEmpty) ...[
+                  AppSpacing.gapXs,
+                  Text(
+                    notes,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.bodyMedium?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+                if ((entry.mood ?? '').trim().isNotEmpty) ...[
+                  AppSpacing.gapSm,
+                  MoodChip(mood: entry.mood),
+                ],
+              ],
             ),
-            const SizedBox(height: 6),
-            Text(
-              entry.mood ?? "",
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: cs.onPrimary,
-              ),
+          ),
+          if (photo.isNotEmpty) ...[
+            AppSpacing.gapMd,
+            JournalPhoto(
+              source: photo,
+              width: _thumb,
+              height: _thumb,
+              radius: AppRadius.mdAll,
             ),
           ],
-        ),
+          if (loading) ...[
+            AppSpacing.gapSm,
+            const SizedBox.square(
+              dimension: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ],
+        ],
       ),
     );
   }

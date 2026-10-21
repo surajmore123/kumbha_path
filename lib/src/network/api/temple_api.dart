@@ -141,7 +141,6 @@ class TempleApi extends Api {
   Future<dynamic> getAiReflection(jsonData)async{
     try{
       final response = await requestGet(path:'api/journal/ai-reflection', parameters: jsonData);
-      print('ai reflection response $response');
       return response;
     }catch (e, _) {
       print(e);
@@ -152,7 +151,6 @@ class TempleApi extends Api {
    Future<dynamic> getAiPrompt(jsonData)async{
     try{
       final response = await requestGet(path:'api/journal/ai-prompt', parameters: jsonData);
-      print('ai prompt response $response');
       return response;
     }catch (e, _) {
       print(e);
@@ -176,7 +174,6 @@ Future<dynamic> createJournalEntry(jsonData) async {
       filePath: imagePath,
     );
 
-    print('journal entry response $response');
     return response;
 
   } catch (e, _) {
@@ -188,7 +185,6 @@ Future<dynamic> createJournalEntry(jsonData) async {
    Future<dynamic> getJournalEntry(jsonData)async{
     try{
       final response = await requestGet(path:'api/journal/entries/', parameters: jsonData);
-      print('journal entry response $response');
       return response;
     }catch (e, _) {
       print(e);
@@ -203,7 +199,6 @@ Future<dynamic> createJournalEntry(jsonData) async {
         path: 'api/journal/entries/${jsonData['id']}/',
         parameters: jsonData,
       );
-      print('journal details response $response');
       return response;
     } catch (e, _) {
       print(e);

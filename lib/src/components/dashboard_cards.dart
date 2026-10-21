@@ -36,6 +36,8 @@ class DashboardFeatureCard extends StatelessWidget {
     );
 
     return Container(
+      width: 165,
+      height: 180,
        decoration: BoxDecoration(
         gradient: gradient,
         borderRadius: BorderRadius.circular(12),

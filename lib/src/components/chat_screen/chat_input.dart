@@ -1,136 +1,138 @@
 import 'dart:io';
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:kumbha_path/src/bloc/webhook_bloc/webhook_bloc.dart';
 import 'package:kumbha_path/src/bloc/webhook_bloc/webhook_event.dart';
+import 'package:kumbha_path/src/components/buttons/app_icon_button.dart';
+import 'package:kumbha_path/src/constant/design_system/design_system.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
-// import your bloc + events here
-// import 'your_bloc_file.dart';
-
+/// Message composer: text, a photo (camera or gallery) and a voice note,
+/// the three inputs the chat API accepts. Each is sent as the existing
+/// `ChatBotEvent.text / .image / .audio`.
 class ChatInputBar extends StatefulWidget {
   final VoidCallback? onMessageSent;
-  const ChatInputBar({super.key, this.onMessageSent});
+
+  /// While true (a reply is pending) nothing can be sent, so a message
+  /// can't be submitted twice.
+  final bool isSending;
+
+  /// Receives each outgoing event. Defaults to adding it to the nearest
+  /// [WebhookBloc], as before.
+  final ValueChanged<ChatBotEvent>? onSubmit;
+
+  const ChatInputBar({
+    super.key,
+    this.onMessageSent,
+    this.isSending = false,
+    this.onSubmit,
+  });
 
   @override
   State<ChatInputBar> createState() => ChatInputBarState();
 }
 
-class ChatInputBarState extends State<ChatInputBar>
-    with SingleTickerProviderStateMixin {
+class ChatInputBarState extends State<ChatInputBar> {
   final TextEditingController _controller = TextEditingController();
-
   final ImagePicker _imagePicker = ImagePicker();
   XFile? _selectedImage;
 
-  final AudioRecorder _audioRecorder = AudioRecorder();
-
+  /// Created on first use so opening the chat touches no audio plugin.
+  AudioRecorder? _recorder;
   bool _isRecording = false;
   String? _recordedAudioPath;
 
-  late final AnimationController _micAnimController;
-  late final Animation<double> _micScaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _micAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-
-    _micScaleAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
-      CurvedAnimation(parent: _micAnimController, curve: Curves.easeInOut),
-    );
-  }
+  bool get _hasText => _controller.text.trim().isNotEmpty;
+  bool get _canSend =>
+      !widget.isSending &&
+      !_isRecording &&
+      (_hasText || _selectedImage != null);
 
   @override
   void dispose() {
     _controller.dispose();
-    _micAnimController.dispose();
-    _audioRecorder.dispose();
+    _recorder?.dispose();
     super.dispose();
   }
 
-  // ---------------- TEXT ----------------
-
-  void _sendText() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-
-    // your existing event
-    context.read<WebhookBloc>().add(ChatBotEvent.text(message: text));
-
-    _controller.clear();
-    setState(() {});
+  void _submit(ChatBotEvent event) {
+    final handler = widget.onSubmit;
+    if (handler != null) {
+      handler(event);
+    } else {
+      context.read<WebhookBloc>().add(event);
+    }
     widget.onMessageSent?.call();
   }
 
-  // ---------------- IMAGE ----------------
+  void _snack(String message) {
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  // ---------------- TEXT / IMAGE ----------------
+
+  void _onPressSend() {
+    if (!_canSend) return;
+    final image = _selectedImage;
+    if (image != null) {
+      _submit(ChatBotEvent.image(file: File(image.path)));
+      setState(() => _selectedImage = null);
+      return;
+    }
+    final text = _controller.text.trim();
+    _submit(ChatBotEvent.text(message: text));
+    _controller.clear();
+    setState(() {});
+  }
 
   Future<void> _showImageOptions() async {
-    showModalBottomSheet(
+    await showModalBottomSheet<void>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.camera_alt_outlined),
-                title: const Text('Capture Image'),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _pickImage(ImageSource.camera);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library_outlined),
-                title: const Text('Choose from Gallery'),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _pickImage(ImageSource.gallery);
-                },
-              ),
-            ],
+      showDragHandle: true,
+      builder:
+          (ctx) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.photo_camera_outlined),
+                  title: Text('ai_camera'.tr()),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _pickImage(ImageSource.camera);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library_outlined),
+                  title: Text('ai_gallery'.tr()),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _pickImage(ImageSource.gallery);
+                  },
+                ),
+                AppSpacing.gapSm,
+              ],
+            ),
           ),
-        );
-      },
     );
   }
 
   Future<void> _pickImage(ImageSource source) async {
     try {
       final image = await _imagePicker.pickImage(source: source);
-      if (image != null) {
-        setState(() {
-          _selectedImage = image;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error picking image: $e');
+      if (image != null && mounted) setState(() => _selectedImage = image);
+    } catch (_) {
+      if (mounted) _snack('ai_image_failed'.tr());
     }
   }
 
-  void _sendImage() {
-    if (_selectedImage == null) return;
-
-    final file = File(_selectedImage!.path);
-    debugPrint('Sending image: ${file.path}');
-    context.read<WebhookBloc>().add(ChatBotEvent.image(file: file));
-
-    setState(() {
-      _selectedImage = null;
-    });
-    widget.onMessageSent?.call();
-  }
+  // ---------------- AUDIO ----------------
 
   Future<void> _toggleRecording() async {
     if (_isRecording) {
@@ -142,17 +144,16 @@ class ChatInputBarState extends State<ChatInputBar>
 
   Future<void> _startRecording() async {
     try {
-      final hasPermission = await _audioRecorder.hasPermission();
-      if (!hasPermission) {
-        debugPrint('No mic permission');
+      final recorder = _recorder ??= AudioRecorder();
+      if (!await recorder.hasPermission()) {
+        if (mounted) _snack('ai_mic_denied'.tr());
         return;
       }
-
       final dir = await getTemporaryDirectory();
       final path =
           '${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
-
-      await _audioRecorder.start(
+      // Same recording settings as before.
+      await recorder.start(
         const RecordConfig(
           encoder: AudioEncoder.aacLc,
           bitRate: 128000,
@@ -160,216 +161,206 @@ class ChatInputBarState extends State<ChatInputBar>
         ),
         path: path,
       );
-
+      if (!mounted) return;
       setState(() {
         _isRecording = true;
         _recordedAudioPath = path;
       });
-
-      // ✅ start the pulsing animation
-      _micAnimController.repeat(reverse: true);
-    } catch (e) {
-      debugPrint('Error starting recording: $e');
+    } catch (_) {
+      if (mounted) _snack('ai_record_failed'.tr());
     }
   }
 
   Future<void> _stopRecordingAndSend() async {
     try {
-      final stoppedPath = await _audioRecorder.stop();
-
-      // ✅ stop and reset animation
-      _micAnimController.stop();
-      _micAnimController.reset();
-
-      setState(() {
-        _isRecording = false;
-      });
-
+      final stoppedPath = await _recorder?.stop();
+      if (!mounted) return;
+      setState(() => _isRecording = false);
       final path = stoppedPath ?? _recordedAudioPath;
+      _recordedAudioPath = null;
       if (path == null) return;
-
-      _sendAudio(path);
-    } catch (e) {
-      debugPrint('Error stopping recording: $e');
+      _submit(ChatBotEvent.audio(file: File(path)));
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isRecording = false);
+        _snack('ai_record_failed'.tr());
+      }
     }
   }
 
-  void _sendAudio(String path) {
-    final file = File(path);
-
-    // TODO: Replace with your actual event for sending audio
-    // context.read<WebhookBloc>().add(SendAudioEvent(audioFile: file));
-    debugPrint('Sending audio: ${file.path}');
-    context.read<WebhookBloc>().add(ChatBotEvent.audio(file: file));
-
-    _recordedAudioPath = null;
-    widget.onMessageSent?.call();
-  }
-
-  void _onPressSend() {
-    if (_selectedImage != null) {
-      _sendImage();
-      return;
-    }
-
-    _sendText();
-  }
+  // ---------------- UI ----------------
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final hasText = _controller.text.trim().isNotEmpty;
+    final colors = context.colorScheme;
+    final semantic = context.semanticColors;
+    final busy = widget.isSending;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (_selectedImage != null)
-          Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            height: 220, // adjust as you like
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: cs.surfaceVariant,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Stack(
-              children: [
-                // image preview
-                Center(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: AppRadius.mdAll,
                     child: Image.file(
                       File(_selectedImage!.path),
-                      width: double.infinity,
-                      fit: BoxFit.contain,
+                      height: 140,
+                      fit: BoxFit.cover,
+                      cacheHeight:
+                          (140 * MediaQuery.devicePixelRatioOf(context))
+                              .round(),
+                      errorBuilder:
+                          (_, __, ___) => Container(
+                            width: 140,
+                            height: 140,
+                            color: colors.surfaceContainerHigh,
+                            child: const Icon(Icons.broken_image_outlined),
+                          ),
                     ),
                   ),
-                ),
-
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: () {
-                      setState(() {
-                        _selectedImage = null;
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: cs.onSurface.withOpacity(0.4),
+                  PositionedDirectional(
+                    top: 0,
+                    end: 0,
+                    child: AppIconButton(
+                      icon: Icons.close_rounded,
+                      tooltip: 'ai_remove_image'.tr(),
+                      variant: AppIconButtonVariant.tonal,
+                      onPressed: () => setState(() => _selectedImage = null),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (_isRecording)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Semantics(
+              liveRegion: true,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.fiber_manual_record,
+                    size: 14,
+                    color: colors.error,
+                  ),
+                  AppSpacing.gapSm,
+                  Expanded(
+                    child: Text(
+                      'ai_recording'.tr(),
+                      style: context.textTheme.bodySmall?.copyWith(
+                        color: colors.error,
                       ),
-                      child: Icon(Icons.close, color: cs.surface, size: 20),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         Container(
           decoration: BoxDecoration(
-            color: cs.surface,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: cs.shadow.withOpacity(0.08),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            color: semantic.inputFill,
+            borderRadius: AppRadius.xlAll,
+            border: Border.all(color: semantic.border),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          padding: const EdgeInsets.all(AppSpacing.xs),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              GestureDetector(
-                onTap: _showImageOptions,
-                child: Icon(
-                  Icons.add_circle_outline,
-                  size: 26,
-                  color: cs.onSurfaceVariant,
-                ),
+              AppIconButton(
+                icon: Icons.add_photo_alternate_outlined,
+                tooltip: 'ai_attach'.tr(),
+                onPressed: busy || _isRecording ? null : _showImageOptions,
               ),
-              const SizedBox(width: 10),
-
               Expanded(
-                child: TextField(
-                  controller: _controller,
-                  decoration: InputDecoration(
-                    hintText: 'Ask a question or share your thoughts.',
-                    hintStyle: TextStyle(
-                      color: cs.onSurfaceVariant,
-                      fontSize: 14,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                  child: TextField(
+                    controller: _controller,
+                    enabled: !_isRecording,
+                    minLines: 1,
+                    maxLines: 5,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.send,
+                    textCapitalization: TextCapitalization.sentences,
+                    style: context.textTheme.bodyLarge,
+                    decoration: InputDecoration(
+                      hintText: 'ai_input_hint'.tr(),
+                      semanticCounterText: '',
+                      filled: false,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xs,
+                        vertical: AppSpacing.sm,
+                      ),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
                     ),
-                    border: InputBorder.none,
+                    onChanged: (_) => setState(() {}),
+                    onSubmitted: (_) => _onPressSend(),
                   ),
-                  minLines: 1,
-                  maxLines: 4,
-                  style: TextStyle(color: cs.onSurface),
-                  onChanged: (_) => setState(() {}),
-                  onSubmitted: (_) => _onPressSend(),
                 ),
               ),
-
-              const SizedBox(width: 10),
-
-              // MIC with animation only when recording
-              GestureDetector(
-                onTap: _toggleRecording,
-                child: ScaleTransition(
-                  scale:
+              if (!_hasText && _selectedImage == null)
+                AppIconButton(
+                  icon:
                       _isRecording
-                          ? _micScaleAnimation
-                          : const AlwaysStoppedAnimation(1.0),
-                  child: Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color:
-                          _isRecording
-                              ? cs.errorContainer.withOpacity(0.25)
-                              : Colors.transparent,
-                    ),
-                    child: Icon(
-                      _isRecording ? Icons.stop : Icons.mic_none,
-                      size: 22,
-                      color: _isRecording ? cs.error : cs.onSurfaceVariant,
-                    ),
-                  ),
+                          ? Icons.stop_rounded
+                          : Icons.mic_none_rounded,
+                  tooltip:
+                      _isRecording ? 'ai_stop_record'.tr() : 'ai_record'.tr(),
+                  variant:
+                      _isRecording
+                          ? AppIconButtonVariant.filled
+                          : AppIconButtonVariant.standard,
+                  onPressed: busy ? null : _toggleRecording,
+                )
+              else
+                _SendButton(
+                  busy: busy,
+                  onPressed: _canSend ? _onPressSend : null,
                 ),
-              ),
-
-              const SizedBox(width: 10),
-
-              GestureDetector(
-                onTap: _onPressSend,
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color:
-                        (hasText || _selectedImage != null)
-                          
-                      ? cs.primary.withOpacity(0.18)
-                      : cs.primary.withOpacity(0.18),
-
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.send,
-                    size: 18,
-                    color: Color(0xFF6C4A00),
-                  ),
-                ),
-              ),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SendButton extends StatelessWidget {
+  const _SendButton({required this.busy, required this.onPressed});
+
+  final bool busy;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    if (busy) {
+      return const SizedBox.square(
+        dimension: AppSpacing.minTouchTarget,
+        child: Center(
+          child: SizedBox.square(
+            dimension: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+    return AppIconButton(
+      icon: Icons.arrow_upward_rounded,
+      tooltip: 'ai_send'.tr(),
+      variant: AppIconButtonVariant.filled,
+      onPressed: onPressed,
     );
   }
 }

@@ -24,15 +24,13 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     emit(state.copyWith(status: UserStatus.sending));
     Map<String, dynamic> jsonData = {"phone_number": event.phoneNumber.trim()};
 
-    print('user create data:$jsonData');
 
     dynamic result = await userRepository.createUser(jsonData);
-    print('result of  create user :$result');
 
     if (result['status'] == "success") {
-      emit(state.copyWith(status: UserStatus.success));
+      emit(state.copyWith(status: UserStatus.otpsended));
     } else {
-      emit(state.copyWith(status: UserStatus.failure));
+      emit(state.copyWith(status: UserStatus.otpsendingfail));
     }
   }
 
@@ -47,9 +45,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
       "otp_code": event.otp,
     };
 
-    print('formdata otp: $jsonData');
     dynamic result = await userRepository.verifyUserOtp(jsonData);
-    print(' otp result: $result');
 
     if (result['status'] == "success") {
       final token = result['data'];
@@ -60,10 +56,9 @@ class UserBloc extends Bloc<UserEvent, UserState> {
         add(FcmRegisterEvent(fcmToken: fcmToken, deviceType: "ANDROID"));
       }
 
-      print('tokeeeeennn ${token['access_token']}');
-      emit(state.copyWith(status: UserStatus.success));
+      emit(state.copyWith(status: UserStatus.otpverified));
     } else {
-      emit(state.copyWith(status: UserStatus.failure));
+      emit(state.copyWith(status: UserStatus.otpverifiedfail));
     }
   }
 
@@ -82,7 +77,6 @@ class UserBloc extends Bloc<UserEvent, UserState> {
       "full_name": event.fullName,
     };
 
-    print('user profile data:$jsonData');
 
     dynamic result = await userRepository.userProfileCreate(jsonData);
     print('result of  user profile create :$result');
@@ -104,7 +98,6 @@ class UserBloc extends Bloc<UserEvent, UserState> {
       "access_token": token.toString(),
       "profile_image": event.image,
     };
-    print('user profile image upload data:$jsonData');
     dynamic result = await userRepository.userProfileImageUpload(jsonData);
     print('result of  user profile image upload :$result');
     if (result['status'] == "success") {
@@ -121,7 +114,6 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     emit(state.copyWith(status: UserStatus.loading));
     final token = await storage.read(key: 'access_token');
     Map<String, String> jsonData = {"access_token": token.toString()};
-    print('get user profile data:$jsonData');
     dynamic result = await userRepository.getUserProfile(jsonData);
     print('result of get user profile :$result');
     if (result['status'] == "success") {
@@ -145,13 +137,12 @@ class UserBloc extends Bloc<UserEvent, UserState> {
       "token": event.fcmToken,
       "device_type": event.deviceType,
     };
-    print('user fcm data:$jsonData');
     dynamic result = await userRepository.registerFcm(jsonData);
     print('result of  user fcm:$result');
     if (result['status'] == "success") {
-      emit(state.copyWith(status: UserStatus.success));
+      emit(state.copyWith(status: UserStatus.fcmRegistered));
     } else {
-      emit(state.copyWith(status: UserStatus.failure));
+      emit(state.copyWith(status: UserStatus.fcmFailed));
     }
   }
 }

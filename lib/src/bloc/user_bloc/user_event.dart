@@ -14,11 +14,11 @@ class UserCreateEvent extends UserEvent {
 }
 
 class VerifyOtpEvent extends UserEvent {
-  final UserStatus? status;
+
   final String phoneNumber;
   final String otp;
 
-  VerifyOtpEvent({this.status, required this.otp, required this.phoneNumber});
+  VerifyOtpEvent({ required this.otp, required this.phoneNumber});
 }
 
 class UserProfileCreateEvent extends UserEvent {

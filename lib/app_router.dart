@@ -21,19 +21,27 @@ class AppRouter {
   Route? onGenerateRoute(RouteSettings routeSettings) {
     switch (routeSettings.name) {
       case '/loginScreen':
-        return MaterialPageRoute(builder: (_) => const LoginScreen());
+        return MaterialPageRoute(
+          settings: routeSettings,
+          builder: (_) => const LoginScreen(),
+        );
 
       case '/verifyOtpScreen':
         final phone = routeSettings.arguments as String?;
         return MaterialPageRoute(
+          settings: routeSettings,
           builder: (_) => OtpVerifyScreen(phoneNumber: phone ?? ''),
         );
 
       case '/dashboardScreen':
-        return MaterialPageRoute(builder: (_) => const Dashboard());
+        return MaterialPageRoute(
+          settings: routeSettings,
+          builder: (_) => const Dashboard(),
+        );
 
       case '/aichat':
         return MaterialPageRoute(
+          settings: routeSettings,
           builder:
               (_) => BlocProvider(
                 create:
@@ -47,31 +55,55 @@ class AppRouter {
         );
 
       case '/launchScreen':
-        return MaterialPageRoute(builder: (_) => const LaunchScreen());
+        return MaterialPageRoute(
+          settings: routeSettings,
+          builder: (_) => const LaunchScreen(),
+        );
 
       case '/shahiEvents':
-        return MaterialPageRoute(builder: (_) => const ShahiEvents());
+        return MaterialPageRoute(
+          settings: routeSettings,
+          builder: (_) => const ShahiEvents(),
+        );
 
       case '/liveCroud':
-        return MaterialPageRoute(builder: (_) => const LiveCrowdMap());
+        return MaterialPageRoute(
+          settings: routeSettings,
+          builder: (_) => const LiveCrowdMap(),
+        );
 
       case '/journal':
-        return MaterialPageRoute(builder: (_) => const JournerScreen());
+        return MaterialPageRoute(
+          settings: routeSettings,
+          builder: (_) => const JournerScreen(),
+        );
 
       // case '/myJournalEntry':
       //   return MaterialPageRoute(builder: (_) => const NewJournalEntryScreen());
 
       case '/notifications':
-        return MaterialPageRoute(builder: (_) => const LiveUpdates());
+        return MaterialPageRoute(
+          settings: routeSettings,
+          builder: (_) => const LiveUpdates(),
+        );
 
       case '/nearTemples':
-        return MaterialPageRoute(builder: (_) => const NearTemples());
+        return MaterialPageRoute(
+          settings: routeSettings,
+          builder: (_) => const NearTemples(),
+        );
 
       case '/templeDetail':
-        return MaterialPageRoute(builder: (_) => const TempleDetailsScreen());
+        return MaterialPageRoute(
+          settings: routeSettings,
+          builder: (_) => const TempleDetailsScreen(),
+        );
 
       case '/setting':
-        return MaterialPageRoute(builder: (_) => const Setting());
+        return MaterialPageRoute(
+          settings: routeSettings,
+          builder: (_) => const Setting(),
+        );
 
       // case '/getStartScreen':
       //   return MaterialPageRoute(builder: (_) => const ChatGetStartScreen());
@@ -89,7 +121,10 @@ class AppRouter {
       //   return MaterialPageRoute(builder: (_) => const ResetPassword());
 
       default:
-        return MaterialPageRoute(builder: (_) => const LaunchScreen());
+        return MaterialPageRoute(
+          settings: routeSettings,
+          builder: (_) => const LaunchScreen(),
+        );
     }
   }
 }
