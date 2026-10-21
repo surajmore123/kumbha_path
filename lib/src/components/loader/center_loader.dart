@@ -22,7 +22,8 @@ class CenterLoader extends StatelessWidget {
           children: <Widget>[
             SafeArea(
               child: Container(
-                color: overlayColor ?? const Color(0x99ffffff),
+                color: overlayColor ??
+                    Theme.of(context).colorScheme.surface.withValues(alpha: 0.6),
               ),
             ),
             const Center(child: CenterLoader()),

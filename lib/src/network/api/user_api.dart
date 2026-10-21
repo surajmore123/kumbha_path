@@ -7,7 +7,6 @@ class UserApi extends Api {
         path: 'api/auth/send-mobile-otp/',
         parameters: jsonData,
       );
-      print('response from send mobile otp $user');
       return user;
     } catch (e, _) {
       print(e);
@@ -21,7 +20,6 @@ class UserApi extends Api {
         path: 'api/auth/verify-mobile-otp/',
         parameters: jsonData,
       );
-      print('response from verify mobile otp $otpverify');
       return otpverify;
     } catch (e, _) {
       print(e);

@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:kumbha_path/src/models/user_profile.dart';
 
-enum UserStatus { initial, loading, success, failure, sending,profileUpdatedSuccess, profileUpdatedFailure,profileImageUploadSuccess,profileImageUploadFailure,profileLoaded }
+enum UserStatus { initial, loading, success, failure, sending,profileUpdatedSuccess, profileUpdatedFailure,profileImageUploadSuccess,profileImageUploadFailure,profileLoaded,otpsended,otpsendingfail,otpverified,otpverifiedfail,fcmRegistered,fcmFailed }
 
 class UserState extends Equatable {
   final UserStatus status;

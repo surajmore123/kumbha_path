@@ -1,6 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:kumbha_path/src/constant/app_color.dart';
+import 'package:flutter/services.dart';
+import 'package:kumbha_path/src/components/buttons/app_button.dart';
+import 'package:kumbha_path/src/components/navigation/app_bottom_navigation.dart';
+import 'package:kumbha_path/src/constant/app_responsive.dart';
+import 'package:kumbha_path/src/constant/design_system/design_system.dart';
 
+/// The app shell: a [Scaffold] that adds the primary navigation and system
+/// bar styling around a feature screen.
+///
+/// Constructor is unchanged. `ctx` is the screen's tab (0 Home, 1 AI Chat,
+/// 2 Events, 3 Journal, 4 Profile) and is used when the current route has
+/// no name; named routes are mapped by [AppNavigation.selectedIndexFor].
+///
+/// When `showDefaultBottom` is true:
+/// * phone widths (< [AppBreakpoints.mobile]) get [AppBottomNavigation];
+/// * wider layouts get [AppNavigationRail] beside the content.
 class MainLayout extends StatefulWidget {
   final Widget? bottomNavigationBar;
   final Widget? body;
@@ -8,11 +22,11 @@ class MainLayout extends StatefulWidget {
   final bool? showCurvedAppBar;
   final bool? showFloatingActionButton;
   final String? title;
-  final PreferredSizeWidget? appBar; // 👈 NEW
-   final Color? backgroundColor;
+  final PreferredSizeWidget? appBar;
+  final Color? backgroundColor;
 
-  int ctx;
-  MainLayout({
+  final int ctx;
+  const MainLayout({
     super.key,
     this.bottomNavigationBar,
     this.showDefaultBottom = false,
@@ -21,7 +35,7 @@ class MainLayout extends StatefulWidget {
     this.body,
     this.showFloatingActionButton = false,
     this.title,
-    this.appBar, // 👈 NEW
+    this.appBar,
     this.backgroundColor,
   });
 
@@ -32,129 +46,65 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   @override
   Widget build(BuildContext context) {
-    double screenWidth = MediaQuery.of(context).size.width;
-    double screenHeight = MediaQuery.of(context).size.height;
-    double paddingFactor = screenWidth < 600 ? 0.05 : 0.03;
+    final theme = Theme.of(context);
+    final semantic = context.semanticColors;
+    final showNav = widget.showDefaultBottom == true;
+    final useRail = showNav && !context.isMobile;
+    final selectedIndex = AppNavigation.selectedIndexFor(context, widget.ctx);
+    final background = widget.backgroundColor ?? theme.scaffoldBackgroundColor;
 
-    return Scaffold(
-       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+    Widget? body = widget.body;
+    if (useRail && body != null) {
+      body = Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SafeArea(
+            right: false,
+            child: AppNavigationRail(currentIndex: selectedIndex),
+          ),
+          VerticalDivider(width: 1, thickness: 1, color: semantic.divider),
+          Expanded(child: body),
+        ],
+      );
+    }
 
-      resizeToAvoidBottomInset: true,
+    final Widget? bottomBar =
+        !showNav
+            ? widget.bottomNavigationBar
+            : useRail
+            ? null
+            : AppBottomNavigation(currentIndex: selectedIndex);
 
-      appBar: widget.appBar, // 👈 USE IT HERE
-
-      body: widget.body,
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: (widget.showFloatingActionButton == false)
-          ? null
-          : Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                bottom: paddingFactor * screenHeight,
-              ),
-              child: GestureDetector(
-                onTap: () {},
-                child: Container(
-                  height: 55,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    // gradient: topUpButton,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: AppTheme.systemOverlayStyle(
+        theme.brightness,
+        navigationBarColor:
+            bottomBar != null ? semantic.navigationSurface : background,
+      ),
+      child: Scaffold(
+        backgroundColor: background,
+        resizeToAvoidBottomInset: true,
+        appBar: widget.appBar,
+        body: body,
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        floatingActionButton:
+            (widget.showFloatingActionButton == false)
+                ? null
+                : Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.xl,
+                    0,
+                    AppSpacing.xl,
+                    AppSpacing.xxl,
                   ),
-                  child: Center(
-                    child: Text(
-                      widget.title.toString(),
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: screenWidth * 0.04,
-                      ),
-                    ),
+                  child: AppButton(
+                    label: widget.title ?? '',
+                    // Preserves the original no-op tap.
+                    onPressed: () {},
                   ),
                 ),
-              ),
-            ),
-      bottomNavigationBar: (widget.showDefaultBottom != true)
-    ? null
-    : ClipRRect(
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-        child: BottomNavigationBar(
-          backgroundColor: whiteColor,
-          type: BottomNavigationBarType.fixed,
-
-          // Text sizes
-          selectedFontSize: screenWidth * 0.03,
-          unselectedFontSize: screenWidth * 0.03,
-
-          // Label colors
-          selectedItemColor: Colors.orange,      // your active color
-          unselectedItemColor: Colors.grey,      // your inactive color
-
-          // (Optional) label styles if you want them slightly bolder for active
-          selectedLabelStyle: TextStyle(
-            fontSize: screenWidth * 0.03,
-            fontWeight: FontWeight.w600,
-          ),
-          unselectedLabelStyle: TextStyle(
-            fontSize: screenWidth * 0.03,
-            fontWeight: FontWeight.w400,
-          ),
-
-          currentIndex: widget.ctx,
-          onTap: (int value) async {
-            switch (value) {
-              case 0:
-                if (widget.ctx != 0) {
-                  Navigator.pushNamed(context, '/dashboardScreen');
-                }
-                break;
-              case 1:
-                if (widget.ctx != 1) {
-                  Navigator.pushNamed(context, '/aichat');
-                }
-                break;
-              case 2:
-                if (widget.ctx != 2) {
-                  Navigator.pushNamed(context, '/shahiEvents');
-                }
-                break;
-              case 3:
-                if (widget.ctx != 3) {
-                  Navigator.pushNamed(context, '/journal');
-                }
-                break;
-            }
-          },
-          items: <BottomNavigationBarItem>[
-            BottomNavigationBarItem(
-              icon: Image.asset('assets/icons/home.png', height: 24, width: 24),
-              activeIcon: Image.asset('assets/icons/home_orange.png', height: 24, width: 24),
-              label: 'Home',
-            ),
-            BottomNavigationBarItem(
-              icon: Image.asset('assets/icons/chatbot.png', height: 24, width: 24),
-          
-              activeIcon: Image.asset('assets/icons/chatbot.png', height: 24, width: 24),
-              label: 'AI Chat',
-            ),
-            BottomNavigationBarItem(
-              icon: Image.asset('assets/icons/event.png', height: 24, width: 24),
-              activeIcon: Image.asset('assets/icons/event_orange.png', height: 24, width: 24),
-              label: 'Events',
-            ),
-            BottomNavigationBarItem(
-              icon: Image.asset('assets/icons/note.png', height: 35, width: 35),
-              activeIcon: Image.asset('assets/icons/note_orange.png', height: 24, width: 24),
-              label: 'Journal',
-            ),
-          ],
-        ),
+        bottomNavigationBar: bottomBar,
       ),
-
     );
   }
 }
-

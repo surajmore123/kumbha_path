@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:kumbha_path/src/constant/design_system/design_system.dart';
 
+/// Small speaker name above a message group.
 class SenderLabel extends StatelessWidget {
   final String name;
   final bool isGuru;
@@ -10,13 +12,12 @@ class SenderLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       name,
-      style: TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
+      style: context.textTheme.labelMedium?.copyWith(
         color:
             isGuru
-                ? const Color(0xFFDA8A2A) // orange-ish
-                : const Color(0xFF1B7A4A), // green-ish
+                ? context.colorScheme.tertiary
+                : context.colorScheme.onSurfaceVariant,
+        fontWeight: FontWeight.w600,
       ),
     );
   }

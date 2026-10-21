@@ -42,7 +42,7 @@ dependencies:
   flutter_secure_storage: ^9.2.4
   cached_network_image: ^3.4.1
   image_picker: ^1.2.1
-  record: ^6.1.2
+  
   path_provider: ^2.1.5
   http_parser: ^4.1.2
   provider: ^6.1.5+1
@@ -57,6 +57,9 @@ dependencies:
   firebase_core: ^4.4.0
   firebase_messaging: ^16.1.1
   flutter_local_notifications: ^20.1.0
+  easy_localization: ^3.0.8
+  pinput: ^6.0.2
+  record: ^6.2.0
 
 dev_dependencies:
   flutter_test:
@@ -85,6 +88,7 @@ flutter:
       - assets/icons/
       - assets/images/
       - assets/markers/
+      - assets/translations/
       - .env
     
   #   - images/a_dot_ham.jpeg

@@ -1,5 +1,7 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kumbha_path/src/constant/app_color.dart';
 
 class LanguageHelper {
   // current language code: 'en', 'hi', 'mr'
@@ -9,6 +11,22 @@ class LanguageHelper {
     if (code == 'en' || code == 'hi' || code == 'mr') {
       currentLang.value = code;
     }
+  }
+
+  /// Supported app languages with their own (native) names.
+  static const Map<String, String> languages = {
+    'en': 'English',
+    'hi': 'हिंदी',
+    'mr': 'मराठी',
+  };
+
+  /// Switches the app language everywhere: easy_localization (which saves
+  /// the choice and restores it on the next launch) and this helper's
+  /// [currentLang], so both translation systems always agree.
+  static Future<void> setAppLanguage(BuildContext context, String code) async {
+    if (!languages.containsKey(code)) return;
+    changeLanguage(code);
+    await context.setLocale(Locale(code));
   }
 
   // simple key-based translation
@@ -834,7 +852,7 @@ class _LanguageTile extends StatelessWidget {
       trailing:
           isSelected ? const Icon(Icons.check, color: Colors.green) : null,
       onTap: () {
-        LanguageHelper.changeLanguage(code);
+        LanguageHelper.setAppLanguage(context, code);
         Navigator.pop(context);
       },
     );
@@ -847,16 +865,17 @@ class LanguageIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    return IconButton(
-      onPressed: () => showLanguageSelectorBottomSheet(context),
-      icon: Image.asset(
-        'assets/icons/internet.png',
-        height: 24,
-        width: 24,
-        color: cs.onSurface,
-      ),
+    return PopupMenuButton<Locale>(
+      icon: const Icon(Icons.language),
+      onSelected: (locale) {
+        LanguageHelper.setAppLanguage(context, locale.languageCode);
+      },
+      itemBuilder:
+          (context) => [
+            const PopupMenuItem(value: Locale('en'), child: Text("English")),
+            const PopupMenuItem(value: Locale('hi'), child: Text("हिंदी")),
+            const PopupMenuItem(value: Locale('mr'), child: Text("मराठी")),
+          ],
     );
   }
 }

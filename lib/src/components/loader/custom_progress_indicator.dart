@@ -88,8 +88,10 @@ class CustomProgressIndicatorState extends State<CustomProgressIndicator>
 
   Widget _itemBuilder(int index) => widget.itemBuilder != null
       ? widget.itemBuilder!(context, index)
-      :  DecoratedBox(
-          decoration: BoxDecoration(color: Colors.amberAccent, shape: BoxShape.circle));
+      : DecoratedBox(
+          decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary,
+              shape: BoxShape.circle));
 }
 
 class DelayTween extends Tween<double> {

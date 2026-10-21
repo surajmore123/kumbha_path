@@ -1,15 +1,22 @@
+import 'dart:async';
+import 'dart:ui' as ui;
+
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:kumbha_path/src/bloc/user_bloc/user_bloc.dart';
 import 'package:kumbha_path/src/bloc/user_bloc/user_event.dart';
 import 'package:kumbha_path/src/bloc/user_bloc/user_state.dart';
+import 'package:kumbha_path/src/components/components.dart';
+import 'package:kumbha_path/src/constant/design_system/design_system.dart';
+import 'package:kumbha_path/src/modules/login_screen/widgets/auth_widgets.dart';
+import 'package:pinput/pinput.dart';
 
-import 'package:kumbha_path/src/constant/app_color.dart';
-import 'package:kumbha_path/src/constant/app_responsive.dart';
-import 'package:kumbha_path/src/constant/language_helper.dart';
-
-
+/// `/verifyOtpScreen`: 6-digit code entry for [phoneNumber].
+///
+/// Verify sends `VerifyOtpEvent(phoneNumber, otp)`; on `otpverified` the
+/// stack is cleared to `/dashboardScreen`, as before. Resend reuses
+/// `UserCreateEvent` after the existing 60-second countdown.
 class OtpVerifyScreen extends StatefulWidget {
   final String phoneNumber;
   const OtpVerifyScreen({super.key, required this.phoneNumber});
@@ -18,269 +25,355 @@ class OtpVerifyScreen extends StatefulWidget {
   State<OtpVerifyScreen> createState() => _OtpVerifyScreenState();
 }
 
+enum _Pending { none, verify, resend }
+
 class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
-  final List<TextEditingController> _otpControllers = List.generate(
-    6,
-    (_) => TextEditingController(),
-  );
+  final TextEditingController otpController = TextEditingController();
+  final FocusNode focusNode = FocusNode();
+
+  static const int otpLength = 6;
+  static const int resendSeconds = 60;
+
+  Timer? _countdownTimer;
+  int _remainingSeconds = resendSeconds;
+  bool _isResendActive = false;
+
+  _Pending _pending = _Pending.none;
+  Timer? _timeout;
+  String? _error;
+  String? _errorDetail;
+
+  bool get _isOtpFilled => otpController.text.length == otpLength;
+
+  @override
+  void initState() {
+    super.initState();
+    _startCountdownTimer();
+    otpController.addListener(_onOtpChanged);
+  }
+
+  void _startCountdownTimer() {
+    _countdownTimer?.cancel();
+    setState(() {
+      _remainingSeconds = resendSeconds;
+      _isResendActive = false;
+    });
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      setState(() {
+        if (_remainingSeconds > 1) {
+          _remainingSeconds--;
+        } else {
+          _remainingSeconds = 0;
+          _isResendActive = true;
+          timer.cancel();
+        }
+      });
+    });
+  }
+
+  void _onOtpChanged() {
+    setState(() {
+      // Editing the code clears the previous attempt's error.
+      if (_error != null && _pending == _Pending.none) {
+        _error = null;
+        _errorDetail = null;
+      }
+    });
+  }
+
+  void _startPending(_Pending kind) {
+    _timeout?.cancel();
+    setState(() {
+      _pending = kind;
+      _error = null;
+      _errorDetail = null;
+    });
+    _timeout = Timer(kAuthRequestTimeout, () {
+      if (!mounted) return;
+      setState(() {
+        if (_pending == _Pending.resend) _isResendActive = true;
+        _pending = _Pending.none;
+        _error = 'auth_network_error'.tr();
+      });
+    });
+  }
+
+  void _finishPending() {
+    _timeout?.cancel();
+    _pending = _Pending.none;
+  }
+
+  void _verify() {
+    if (!_isOtpFilled || _pending != _Pending.none) return;
+    FocusScope.of(context).unfocus();
+    _startPending(_Pending.verify);
+    context.read<UserBloc>().add(
+      VerifyOtpEvent(phoneNumber: widget.phoneNumber, otp: otpController.text),
+    );
+  }
+
+  void _resendOtp() {
+    if (!_isResendActive || _pending != _Pending.none) return;
+    otpController.clear();
+    _startPending(_Pending.resend);
+    context.read<UserBloc>().add(
+      UserCreateEvent(phoneNumber: widget.phoneNumber),
+    );
+    _startCountdownTimer();
+  }
+
+  void _snack(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _onUserState(BuildContext context, UserState state) {
+    switch ((_pending, state.status)) {
+      case (_Pending.verify, UserStatus.otpverified):
+        _finishPending();
+        _snack('registration_success'.tr());
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/dashboardScreen',
+          (route) => false,
+        );
+      case (_Pending.verify, UserStatus.otpverifiedfail):
+        setState(() {
+          _finishPending();
+          _error = 'otp_verification_failed'.tr();
+          _errorDetail = 'auth_otp_failed_hint'.tr();
+        });
+        focusNode.requestFocus();
+      case (_Pending.resend, UserStatus.otpsended):
+        setState(_finishPending);
+        _snack('auth_code_resent'.tr());
+        focusNode.requestFocus();
+      case (_Pending.resend, UserStatus.otpsendingfail):
+        _countdownTimer?.cancel();
+        setState(() {
+          _finishPending();
+          _isResendActive = true;
+          _error = 'otp_failed'.tr();
+        });
+      default:
+        break;
+    }
+  }
 
   @override
   void dispose() {
-    for (final c in _otpControllers) {
-      c.dispose();
-    }
+    _countdownTimer?.cancel();
+    _timeout?.cancel();
+    otpController.removeListener(_onOtpChanged);
+    otpController.dispose();
+    focusNode.dispose();
     super.dispose();
+  }
+
+  String get _countdownLabel {
+    final m = _remainingSeconds ~/ 60;
+    final s = (_remainingSeconds % 60).toString().padLeft(2, '0');
+    return '${'resend_in_prefix'.tr()} $m:$s';
   }
 
   @override
   Widget build(BuildContext context) {
-    final phoneNumber = widget.phoneNumber;
-    // final phoneNumber = ModalRoute.of(context)!.settings.arguments as String;
-    final isMobile = context.isMobile;
-    final isTablet = context.isTablet;
-    final isDesktop = context.isDesktop;
+    final text = context.textTheme;
+    final colors = context.colorScheme;
+    final semantic = context.semanticColors;
+    final masked = maskPhoneNumber(widget.phoneNumber);
+    final verifying = _pending == _Pending.verify;
+    final hasError = _error != null;
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: blackColor),
-          onPressed: () {
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              '/loginScreen',
-              (route) => false,
-            );
-          },
+    return BlocListener<UserBloc, UserState>(
+      listener: _onUserState,
+      child: Scaffold(
+        appBar: AppAppBar(
+          title: 'verify_your_number'.tr(),
+          showBackButton: true,
         ),
-        centerTitle: true,
-        title: Text(LanguageHelper.t('verify_your_number')),
-      ),
-
-      bottomNavigationBar: Padding(
-        padding: EdgeInsets.fromLTRB(24, 8, 24, isMobile ? 16 : 24),
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber,
-              foregroundColor: Colors.black,
-              padding: EdgeInsets.symmetric(vertical: isMobile ? 14 : 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onPressed: () {
-              final otp = _otpControllers.map((c) => c.text).join();
-              if (otp.length != 6) {
-                print('Invalid OTP: $otp');
-                return;
-              }
-              context.read<UserBloc>().add(
-                VerifyOtpEvent(phoneNumber: phoneNumber, otp: otp),
-              );
-            },
-            child: Text(
-              LanguageHelper.t('verify_button'),
-              style: TextStyle(
-                fontSize: isMobile ? 15 : 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
-      ),
-
-      body: ValueListenableBuilder<String>(
-        valueListenable: LanguageHelper.currentLang,
-        builder: (context, lang, _) {
-          final titleStyle = Theme.of(
-            context,
-          ).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            fontSize:
-                isMobile
-                    ? 20
-                    : isTablet
-                    ? 26
-                    : 30,
-          );
-
-          final subtitleStyle = Theme.of(context).textTheme.bodyMedium
-              ?.copyWith(fontSize: isMobile ? 14 : 16, color: Colors.grey[700]);
-
-          return BlocConsumer<UserBloc, UserState>(
-            listener: (context, state) {
-              if (state.status == UserStatus.success) {
-                // CenterLoader.hide();
-
-                Fluttertoast.showToast(
-                  msg: "Registration Successfully",
-                  backgroundColor: Colors.amberAccent,
-                  toastLength: Toast.LENGTH_SHORT,
-                );
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/dashboardScreen',
-                  (route) => false,
-                );
-                // Navigator.pushNamed(context, '/dashboardScreen');
-              }
-               else if (state.status == UserStatus.sending) {
-                // CenterLoader.show(context);
-              } else if (state.status == UserStatus.failure) {
-                // CenterLoader.hide();
-                Fluttertoast.showToast(
-                  msg: "Otp verification Failed",
-                  backgroundColor: Colors.red,
-                  toastLength: Toast.LENGTH_SHORT,
-                );
-              }
-            },
-            builder: (context, state) {
-              return Center(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(
-                    horizontal:
-                        isMobile
-                            ? 24
-                            : isTablet
-                            ? 40
-                            : 56,
-                    vertical: isMobile ? 16 : 24,
-                  ),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: isDesktop ? 420 : 500,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(phoneNumber),
-                        Text(
-                          LanguageHelper.t('verify_your_number'),
-                          style: titleStyle,
-                          textAlign: TextAlign.center,
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        Text(
-                          LanguageHelper.t('otp_verify_message'),
-                          style: subtitleStyle,
-                          textAlign: TextAlign.center,
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: List.generate(
-                            6,
-                            (index) => _buildOtpBox(
-                              context,
-                              controller: _otpControllers[index],
-                              isMobile: isMobile,
-                              isLast: index == 5,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        RichText(
-                          textAlign: TextAlign.center,
-                          text: TextSpan(
-                            style: subtitleStyle,
-                            children: [
-                              TextSpan(
-                                text:
-                                    LanguageHelper.t('resend_in_prefix') + ' ',
-                              ),
-                              TextSpan(
-                                text: '01:30',
-                                style: subtitleStyle?.copyWith(
-                                  color: Theme.of(context).colorScheme.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        TextButton(
-                          onPressed: () {},
-                          child: Text(
-                            LanguageHelper.t('didnt_receive_resend'),
-                            style: subtitleStyle?.copyWith(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-
-                        const SizedBox(height: 40),
-                      ],
-                    ),
+        body: AuthLayout(
+          banner: const AuthBanner(),
+          form: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Semantics(
+                header: true,
+                child: Text(
+                  'enter_verification_code'.tr(),
+                  style: text.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              );
-            },
-          );
-        },
+              ),
+              AppSpacing.gapSm,
+              Text(
+                'otp_verify_message'.tr(),
+                style: text.bodyLarge?.copyWith(color: colors.onSurfaceVariant),
+              ),
+              AppSpacing.gapMd,
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: AppSpacing.xs,
+                children: [
+                  Directionality(
+                    textDirection: ui.TextDirection.ltr,
+                    child: Text(
+                      'auth_code_sent_to'.tr(args: [masked]),
+                      style: text.titleSmall,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed:
+                        verifying ? null : () => Navigator.maybePop(context),
+                    child: Text('auth_change_number'.tr()),
+                  ),
+                ],
+              ),
+              AppSpacing.gapLg,
+              LayoutBuilder(
+                builder:
+                    (context, constraints) => _OtpInput(
+                      controller: otpController,
+                      focusNode: focusNode,
+                      maxWidth: constraints.maxWidth,
+                      hasError: hasError && _errorDetail != null,
+                      enabled: !verifying,
+                      onCompleted: (_) => setState(() {}),
+                    ),
+              ),
+              if (hasError) ...[
+                AppSpacing.gapMd,
+                AuthMessage(message: _error!, detail: _errorDetail),
+              ],
+              AppSpacing.gapXl,
+              AppButton(
+                label: 'verify_button'.tr(),
+                isLoading: verifying,
+                onPressed: _isOtpFilled ? _verify : null,
+              ),
+              AppSpacing.gapLg,
+              Center(
+                child:
+                    _isResendActive
+                        ? TextButton.icon(
+                          onPressed:
+                              _pending == _Pending.none ? _resendOtp : null,
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: Text('auth_resend'.tr()),
+                        )
+                        : Semantics(
+                          liveRegion: false,
+                          child: Text(
+                            _countdownLabel,
+                            style: text.bodyMedium?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+              ),
+              AppSpacing.gapLg,
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: semantic.infoContainer,
+                  borderRadius: AppRadius.mdAll,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.schedule_rounded,
+                      size: 20,
+                      color: semantic.onInfoContainer,
+                    ),
+                    AppSpacing.gapSm,
+                    Expanded(
+                      child: Text(
+                        'code_expire_in'.tr(),
+                        style: text.bodySmall?.copyWith(
+                          color: semantic.onInfoContainer,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
+}
 
-  Widget _buildOtpBox(
-    BuildContext context, {
-    required TextEditingController controller,
-    required bool isMobile,
-    required bool isLast,
-  }) {
-    final double boxWidth = isMobile ? 50 : 55;
-    final double boxHeight = isMobile ? 65 : 70;
+/// Six themed boxes. Pinput provides paste, the system one-time-code
+/// autofill hint and correct focus movement.
+class _OtpInput extends StatelessWidget {
+  const _OtpInput({
+    required this.controller,
+    required this.focusNode,
+    required this.maxWidth,
+    required this.hasError,
+    required this.enabled,
+    required this.onCompleted,
+  });
 
-    return SizedBox(
-      width: boxWidth,
-      height: boxHeight,
-      child: TextField(
-        controller: controller,
-        keyboardType: TextInputType.number,
-        textAlign: TextAlign.center,
-        maxLength: 1,
-        style: TextStyle(
-          fontSize: isMobile ? 24 : 26,
-          fontWeight: FontWeight.bold,
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final double maxWidth;
+  final bool hasError;
+  final bool enabled;
+  final ValueChanged<String> onCompleted;
+
+  static const double _gap = AppSpacing.sm;
+  static const double _maxBox = 56;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colorScheme;
+    final semantic = context.semanticColors;
+    final count = _OtpVerifyScreenState.otpLength;
+    final box = ((maxWidth - _gap * (count - 1)) / count).clamp(36.0, _maxBox);
+    // Taller than wide so scaled digits keep room.
+    final height = box * 1.2;
+    final digitStyle = context.textTheme.headlineSmall?.copyWith(
+      fontWeight: FontWeight.w600,
+      color: colors.onSurface,
+    );
+
+    PinTheme theme(Color border, {double width = 1, Color? fill}) => PinTheme(
+      width: box,
+      height: height,
+      textStyle: digitStyle,
+      decoration: BoxDecoration(
+        color: fill ?? semantic.inputFill,
+        borderRadius: AppRadius.mdAll,
+        border: Border.all(color: border, width: width),
+      ),
+    );
+
+    return Semantics(
+      label: 'auth_otp_label'.tr(),
+      child: Directionality(
+        textDirection: ui.TextDirection.ltr,
+        child: Pinput(
+          length: count,
+          controller: controller,
+          focusNode: focusNode,
+          autofocus: true,
+          enabled: enabled,
+          separatorBuilder: (_) => const SizedBox(width: _gap),
+          defaultPinTheme: theme(semantic.border),
+          focusedPinTheme: theme(colors.primary, width: 2),
+          submittedPinTheme: theme(colors.outline),
+          errorPinTheme: theme(colors.error, width: 1.5),
+          forceErrorState: hasError,
+          onCompleted: onCompleted,
+          hapticFeedbackType: HapticFeedbackType.lightImpact,
         ),
-        decoration: InputDecoration(
-          counterText: '',
-          isDense: false,
-          contentPadding: const EdgeInsets.symmetric(vertical: 18),
-
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(width: 1.2),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(
-              color: Theme.of(context).colorScheme.primary,
-              width: 1.8,
-            ),
-          ),
-        ),
-
-        onChanged: (value) {
-          if (value.length == 1 && !isLast) {
-            FocusScope.of(context).nextFocus();
-          } else if (value.isEmpty) {
-            FocusScope.of(context).previousFocus();
-          }
-        },
       ),
     );
   }

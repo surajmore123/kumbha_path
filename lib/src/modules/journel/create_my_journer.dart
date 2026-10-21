@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
@@ -5,15 +8,30 @@ import 'package:kumbha_path/main_layout.dart';
 import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_bloc.dart';
 import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_event.dart';
 import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_state.dart';
-import 'package:kumbha_path/src/constant/app_color.dart';
-import 'package:kumbha_path/src/constant/app_responsive.dart';
-import 'package:kumbha_path/src/constant/language_helper.dart';
-import 'package:kumbha_path/src/modules/journel/journer_screen.dart';
+import 'package:kumbha_path/src/components/components.dart';
+import 'package:kumbha_path/src/constant/design_system/design_system.dart';
+import 'package:kumbha_path/src/modules/journel/widgets/journal_widgets.dart';
 
+/// New MyKumbh journal entry.
+///
+/// Sends the existing `CreateJournalEntryEvent` with the same field
+/// mapping as before: "Your thoughts" → `notes`, the notes box (pre-filled
+/// with an AI reflection when coming from Daily Reflection) →
+/// `aiReflection`, the prompt passed in → `aiPrompt`, the selected mood →
+/// `mood` (Peaceful by default), and the optional photo (quality 25).
 class NewJournalEntryScreen extends StatefulWidget {
   final String? aiReflection;
   final String? aiPrompt;
-  const NewJournalEntryScreen({super.key, this.aiReflection, this.aiPrompt});
+
+  /// Picks a photo; defaults to image_picker. Injected in tests.
+  final Future<XFile?> Function(ImageSource source)? pickImage;
+
+  const NewJournalEntryScreen({
+    super.key,
+    this.aiReflection,
+    this.aiPrompt,
+    this.pickImage,
+  });
 
   @override
   State<NewJournalEntryScreen> createState() => _NewJournalEntryScreenState();
@@ -22,567 +40,392 @@ class NewJournalEntryScreen extends StatefulWidget {
 class _NewJournalEntryScreenState extends State<NewJournalEntryScreen> {
   final _titleController = TextEditingController();
   final _notesController = TextEditingController();
-  final _aiThought = TextEditingController();
   final _yourThought = TextEditingController();
   XFile? profileImage;
-  bool isLoading = false;
   int _selectedMoodIndex = 0;
+
+  bool _saving = false;
+  bool _saved = false;
+  String? _validation;
+  Timer? _timeout;
+
+  /// Photo upload can be slow; after this the user can try again.
+  static const Duration _saveTimeout = Duration(seconds: 60);
+  static const double _maxWidth = 720;
+
+  String? get _prompt {
+    final p = (widget.aiPrompt ?? '').trim();
+    return p.isEmpty ? null : p;
+  }
+
   @override
   void initState() {
     super.initState();
     _notesController.text = widget.aiReflection ?? '';
-    _aiThought.text = widget.aiPrompt ?? '';
+    for (final c in [_titleController, _notesController, _yourThought]) {
+      c.addListener(_onEdited);
+    }
   }
 
-  final List<Map<String, String>> moods = [
-    {'emoji': '🙏', 'label': 'Peaceful', 'value': 'peaceful'},
-    {'emoji': '😊', 'label': 'Joyful', 'value': 'joyful'},
-    {'emoji': '✨', 'label': 'Enlightened', 'value': 'enlightened'},
-    {'emoji': '🤔', 'label': 'Reflective', 'value': 'reflective'},
-    {'emoji': '😢', 'label': 'Emotional', 'value': 'emotional'},
-  ];
+  bool _wasDirty = false;
+
+  /// Rebuild only when it matters: clearing the validation message, or the
+  /// form switching between pristine and edited (for the discard warning).
+  void _onEdited() {
+    final dirty = _isDirty;
+    if (_validation != null || dirty != _wasDirty) {
+      setState(() {
+        _validation = null;
+        _wasDirty = dirty;
+      });
+    }
+  }
 
   @override
   void dispose() {
+    _timeout?.cancel();
     _titleController.dispose();
     _notesController.dispose();
-    _aiThought.dispose();
+    _yourThought.dispose();
     super.dispose();
   }
 
-  Future<void> takeImage(BuildContext context) async {
-    final picker = ImagePicker();
+  bool get _isDirty =>
+      _titleController.text.trim().isNotEmpty ||
+      _yourThought.text.trim().isNotEmpty ||
+      _notesController.text.trim() != (widget.aiReflection ?? '').trim() ||
+      profileImage != null ||
+      _selectedMoodIndex != 0;
 
-    showModalBottomSheet(
+  bool get _hasContent =>
+      _titleController.text.trim().isNotEmpty ||
+      _yourThought.text.trim().isNotEmpty ||
+      _notesController.text.trim().isNotEmpty ||
+      profileImage != null;
+
+  // ---------------- photo ----------------
+
+  Future<XFile?> _pick(ImageSource source) => (widget.pickImage ??
+      (s) => ImagePicker().pickImage(source: s, imageQuality: 25))(source);
+
+  Future<void> _choosePhoto() async {
+    final source = await showModalBottomSheet<ImageSource>(
       context: context,
-      builder: (BuildContext bc) {
-        return SafeArea(
-          child: Wrap(
-            children: <Widget>[
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text('Camera'),
-                onTap: () async {
-                  Navigator.of(bc).pop();
-                  final pickedFile = await picker.pickImage(
-                    source: ImageSource.camera,
-                    imageQuality: 25,
-                  );
-                  if (pickedFile != null) {
-                    setState(() {
-                      profileImage = pickedFile;
-                      isLoading = true;
-                    });
-
-                    await Future.delayed(const Duration(seconds: 1));
-                    setState(() {
-                      isLoading = false;
-                    });
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo),
-                title: const Text('Gallery'),
-                onTap: () async {
-                  Navigator.of(bc).pop();
-                  final pickedFile = await picker.pickImage(
-                    source: ImageSource.gallery,
-                    imageQuality: 25,
-                  );
-                  if (pickedFile != null) {
-                    setState(() {
-                      profileImage = pickedFile;
-                      isLoading = true;
-                    });
-
-                    await Future.delayed(const Duration(seconds: 1));
-                    setState(() {
-                      isLoading = false;
-                    });
-                  }
-                },
-              ),
-            ],
+      showDragHandle: true,
+      builder:
+          (sheet) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.photo_camera_outlined),
+                  title: Text('ai_camera'.tr()),
+                  onTap: () => Navigator.pop(sheet, ImageSource.camera),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library_outlined),
+                  title: Text('ai_gallery'.tr()),
+                  onTap: () => Navigator.pop(sheet, ImageSource.gallery),
+                ),
+                AppSpacing.gapSm,
+              ],
+            ),
           ),
-        );
-      },
+    );
+    if (source == null) return;
+    try {
+      final picked = await _pick(source);
+      if (picked != null && mounted) {
+        setState(() {
+          profileImage = picked;
+          _validation = null;
+        });
+      }
+    } catch (_) {
+      if (mounted) _snack('ai_image_failed'.tr());
+    }
+  }
+
+  // ---------------- save ----------------
+
+  void _snack(String message, {bool error = false}) {
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: error ? context.colorScheme.error : null,
+        ),
+      );
+  }
+
+  void _save() {
+    if (_saving) return; // no duplicate submissions
+    FocusScope.of(context).unfocus();
+    if (!_hasContent) {
+      setState(() => _validation = 'journal_empty_entry'.tr());
+      return;
+    }
+    setState(() => _saving = true);
+    _timeout?.cancel();
+    _timeout = Timer(_saveTimeout, () {
+      if (!mounted || !_saving) return;
+      setState(() => _saving = false);
+      _snack('auth_network_error'.tr(), error: true);
+    });
+    context.read<AppDetailsBloc>().add(
+      CreateJournalEntryEvent(
+        title: _titleController.text.trim(),
+        notes: _yourThought.text.trim(),
+        aiPrompt: widget.aiPrompt.toString(),
+        aiReflection: _notesController.text.trim(),
+        mood: JournalMood.all[_selectedMoodIndex].value,
+        imagePath: profileImage?.path,
+      ),
     );
   }
 
+  void _onState(BuildContext context, AppDetailsState state) {
+    if (!_saving) return;
+    if (state.status == AppDetailsStatus.journalEntryCreated) {
+      _timeout?.cancel();
+      setState(() {
+        _saving = false;
+        _saved = true;
+      });
+      _snack('journal_create_success'.tr());
+      // Refresh the list, then return to the journal already open below
+      // (instead of stacking another journal screen on top).
+      context.read<AppDetailsBloc>().add(GetJournalEntry(page: 1));
+      final navigator = Navigator.of(context);
+      if (AppNavigation.observer.navigator == navigator &&
+          AppNavigation.observer.contains('/journal')) {
+        navigator.popUntil((r) => r.settings.name == '/journal' || r.isFirst);
+      } else if (navigator.canPop()) {
+        navigator.pop();
+      } else {
+        navigator.pushReplacementNamed('/journal');
+      }
+    } else if (state.status == AppDetailsStatus.journalEntryError) {
+      _timeout?.cancel();
+      setState(() => _saving = false);
+      _snack('journal_create_failed'.tr(), error: true);
+    }
+  }
+
+  Future<bool> _confirmDiscard() async {
+    final discard = await showDialog<bool>(
+      context: context,
+      builder:
+          (dialog) => AlertDialog(
+            title: Text('journal_discard_title'.tr()),
+            content: Text('journal_discard_body'.tr()),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialog, false),
+                child: Text('journal_keep_editing'.tr()),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialog, true),
+                child: Text('journal_discard'.tr()),
+              ),
+            ],
+          ),
+    );
+    return discard ?? false;
+  }
+
+  // ---------------- UI ----------------
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
+    final text = context.textTheme;
+    final colors = context.colorScheme;
 
-    final isMobile = context.isMobile;
-    final isTablet = context.isTablet;
-    final isDesktop = context.isDesktop;
-
-    return MainLayout(
-      showDefaultBottom: false,
-      ctx: 3,
-      appBar: AppBar(
-        backgroundColor: theme.appBarTheme.backgroundColor ?? cs.surface,
-        elevation: 0,
-        centerTitle: true,
-         iconTheme: IconThemeData(color: blackColor),
-        title: Text(
-          LanguageHelper.t('journal_new_entry_title'),
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: cs.onSurface,
+    return PopScope(
+      // Ask before throwing away what was written.
+      canPop: _saved || !_isDirty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop || _saving) return;
+        if (await _confirmDiscard() && context.mounted) {
+          setState(() => _saved = true); // allow the pop
+          Navigator.pop(context);
+        }
+      },
+      child: MainLayout(
+        showDefaultBottom: false,
+        ctx: 3,
+        appBar: AppAppBar(title: 'journal_new_entry_title'.tr()),
+        body: BlocListener<AppDetailsBloc, AppDetailsState>(
+          listener: _onState,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final side =
+                  constraints.maxWidth > _maxWidth + AppSpacing.pageGutter * 2
+                      ? (constraints.maxWidth - _maxWidth) / 2
+                      : AppSpacing.pageGutter;
+              return ListView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.fromLTRB(
+                  side,
+                  AppSpacing.md,
+                  side,
+                  AppSpacing.huge,
+                ),
+                children: [
+                  if (_prompt != null) ...[
+                    AiContentCard(
+                      heading: 'journal_prompt_from_ai'.tr(),
+                      child: Text(
+                        _prompt!,
+                        style: text.bodyLarge?.copyWith(height: 1.5),
+                      ),
+                    ),
+                    AppSpacing.gapXl,
+                  ],
+                  AppTextField(
+                    controller: _titleController,
+                    label: 'journal_field_title'.tr(),
+                    hint: 'journal_field_title_hint'.tr(),
+                    textCapitalization: TextCapitalization.sentences,
+                    textInputAction: TextInputAction.next,
+                    enabled: !_saving,
+                  ),
+                  AppSpacing.gapXl,
+                  AppTextField(
+                    controller: _yourThought,
+                    label: 'journal_your_thoughts'.tr(),
+                    hint: 'journal_answer_hint'.tr(),
+                    keyboardType: TextInputType.multiline,
+                    textCapitalization: TextCapitalization.sentences,
+                    minLines: 6,
+                    maxLines: null,
+                    enabled: !_saving,
+                  ),
+                  AppSpacing.gapXl,
+                  AppTextField(
+                    controller: _notesController,
+                    label: 'journal_field_notes'.tr(),
+                    hint: 'journal_field_notes_hint'.tr(),
+                    keyboardType: TextInputType.multiline,
+                    textCapitalization: TextCapitalization.sentences,
+                    minLines: 3,
+                    maxLines: null,
+                    enabled: !_saving,
+                  ),
+                  AppSpacing.gapXl,
+                  _PhotoField(
+                    image: profileImage,
+                    enabled: !_saving,
+                    onChoose: _choosePhoto,
+                    onRemove: () => setState(() => profileImage = null),
+                  ),
+                  AppSpacing.gapXl,
+                  Text('journal_how_feeling'.tr(), style: text.titleSmall),
+                  AppSpacing.gapSm,
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    children: [
+                      for (var i = 0; i < JournalMood.all.length; i++)
+                        ChoiceChip(
+                          avatar: Text(JournalMood.all[i].emoji),
+                          label: Text(JournalMood.all[i].label),
+                          selected: _selectedMoodIndex == i,
+                          onSelected:
+                              _saving
+                                  ? null
+                                  : (_) =>
+                                      setState(() => _selectedMoodIndex = i),
+                        ),
+                    ],
+                  ),
+                  if (_validation != null) ...[
+                    AppSpacing.gapLg,
+                    Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        _validation!,
+                        style: text.bodyMedium?.copyWith(color: colors.error),
+                      ),
+                    ),
+                  ],
+                  AppSpacing.gapXl,
+                  AppButton(
+                    label: 'journal_btn_save_entry'.tr(),
+                    leadingIcon: Icons.check_rounded,
+                    isLoading: _saving,
+                    onPressed: _save,
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
+    );
+  }
+}
 
-      body: ValueListenableBuilder<String>(
-        valueListenable: LanguageHelper.currentLang,
-        builder: (context, lang, _) {
-          final labelStyle = theme.textTheme.bodyMedium?.copyWith(
-            fontSize: isMobile ? 14 : 15,
-            fontWeight: FontWeight.w600,
-            color: cs.onBackground,
-          );
+class _PhotoField extends StatelessWidget {
+  const _PhotoField({
+    required this.image,
+    required this.enabled,
+    required this.onChoose,
+    required this.onRemove,
+  });
 
-          final hintStyle = theme.textTheme.bodyMedium?.copyWith(
-            fontSize: isMobile ? 13.5 : 14,
-            color: cs.onBackground.withOpacity(0.5),
-          );
+  final XFile? image;
+  final bool enabled;
+  final VoidCallback onChoose;
+  final VoidCallback onRemove;
 
-          // shared primary gradient (light => orange, dark => cs.primary -> cs.primaryContainer)
-          final primaryGradient = buildThemeGradient(context, isPrimary: true);
-
-          return BlocConsumer<AppDetailsBloc, AppDetailsState>(
-            listener: (context, state) {
-              if (state.status == AppDetailsStatus.journalEntryCreated) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      state.message ?? 'Journal entry created successfully!',
-                    ),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-                Navigator.push(context, MaterialPageRoute(builder: (context)=>JournerScreen() ));
-              } else if (state.status == AppDetailsStatus.journalEntryError) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      state.message ??
-                          'Failed to create journal entry. Please try again.',
-                    ),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            builder: (context, state) {
-              return Container(
-                color: theme.scaffoldBackgroundColor,
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(
-                    horizontal:
-                        isMobile
-                            ? 16
-                            : isTablet
-                            ? 32
-                            : 56,
-                    vertical: isMobile ? 16 : 24,
-                  ),
-
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: isDesktop ? 520 : 480,
-                    ),
-
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // ---------------- TITLE ----------------
-                        Text(
-                          LanguageHelper.t('journal_field_title'),
-                          style: labelStyle,
-                        ),
-                        const SizedBox(height: 8),
-
-                        TextField(
-                          controller: _titleController,
-                          decoration: InputDecoration(
-                            hintText: LanguageHelper.t(
-                              'journal_field_title_hint',
-                            ),
-                            hintStyle: hintStyle,
-                            filled: true,
-                            fillColor: cs.surface,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(28),
-                              borderSide: BorderSide(
-                                color: cs.outline.withOpacity(0.2),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 18),
-                        // Icons.add_circle_outline : Icons.auto_awesome,
-                        widget.aiPrompt != null
-                            ? Column(
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text('AI Asked...', style: labelStyle),
-
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.auto_awesome,
-                                          color: Colors.deepOrange,
-                                          size: 15,
-                                        ),
-                                        SizedBox(width: 5),
-                                        Text(
-                                          'AI Prompt Activated',
-                                          style:
-                                              Theme.of(
-                                                context,
-                                              ).textTheme.bodyMedium,
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-
-                                SizedBox(
-                                  height: 80,
-                                  child: TextField(
-                                    controller: _aiThought,
-                                    maxLines: null,
-                                    expands: true,
-                                    textAlignVertical: TextAlignVertical.top,
-                                    decoration: InputDecoration(
-                                      hintText: 'AI Thought.....',
-                                      // hintText: LanguageHelper.t(
-                                      //   'journal_field_notes_hint',
-                                      // ),
-                                      hintStyle: hintStyle,
-                                      filled: true,
-                                      fillColor: cs.surface,
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 12,
-                                          ),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(24),
-                                        borderSide: BorderSide(
-                                          color: cs.outline.withOpacity(0.2),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-
-                                const SizedBox(height: 20),
-                              ],
-                            )
-                            : SizedBox.shrink(),
-
-                        Text('Your Thoughts', style: labelStyle),
-                        const SizedBox(height: 8),
-
-                        SizedBox(
-                          height: 80,
-                          child: TextField(
-                            controller: _yourThought,
-                            maxLines: null,
-                            expands: true,
-                            textAlignVertical: TextAlignVertical.top,
-                            decoration: InputDecoration(
-                              hintText: 'Answer.....',
-                              // hintText: LanguageHelper.t(
-                              //   'journal_field_notes_hint',
-                              // ),
-                              hintStyle: hintStyle,
-                              filled: true,
-                              fillColor: cs.surface,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24),
-                                borderSide: BorderSide(
-                                  color: cs.outline.withOpacity(0.2),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // ---------------- ADD PHOTO ----------------
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 20,
-                          ),
-                          decoration: BoxDecoration(
-                            color: cs.surface,
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(
-                              color: cs.outline.withOpacity(0.25),
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              Text(
-                                LanguageHelper.t('journal_add_photo_title'),
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: cs.onBackground,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-
-                              Text(
-                                LanguageHelper.t('journal_add_photo_subtitle'),
-                                textAlign: TextAlign.center,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontSize: 13.5,
-                                  color: cs.onBackground.withOpacity(0.65),
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-
-                              GestureDetector(
-                                onTap: () {
-                                  print('jhjdbdhb');
-                                  takeImage(context);
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 22,
-                                    vertical: 10,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(24),
-                                    gradient: primaryGradient,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: cs.primary.withOpacity(0.30),
-                                        blurRadius: 6,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.upload_outlined,
-                                        size: 18,
-                                        color: cs.onPrimary,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        LanguageHelper.t(
-                                          'journal_add_photo_button',
-                                        ),
-                                        style: TextStyle(
-                                          color: cs.onPrimary,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        Text(
-                          LanguageHelper.t('journal_field_notes'),
-                          style: labelStyle,
-                        ),
-                        const SizedBox(height: 8),
-
-                        SizedBox(
-                          height: 130,
-                          child: TextField(
-                            controller: _notesController,
-                            maxLines: null,
-                            expands: true,
-                            textAlignVertical: TextAlignVertical.top,
-                            decoration: InputDecoration(
-                              hintText: LanguageHelper.t(
-                                'journal_field_notes_hint',
-                              ),
-                              hintStyle: hintStyle,
-                              filled: true,
-                              fillColor: cs.surface,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24),
-                                borderSide: BorderSide(
-                                  color: cs.outline.withOpacity(0.2),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        Text(
-                          LanguageHelper.t('journal_how_feeling'),
-                          style: labelStyle?.copyWith(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-
-                        SizedBox(
-                          height: 70,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: List.generate(5, (index) {
-                              final isSelected = _selectedMoodIndex == index;
-                              final mood = moods[index];
-
-                              return GestureDetector(
-                                onTap:
-                                    () => setState(
-                                      () => _selectedMoodIndex = index,
-                                    ),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 150),
-                                  width: isSelected ? 64 : 56,
-                                  height: isSelected ? 64 : 56,
-                                  decoration: BoxDecoration(
-                                    color:
-                                        isSelected
-                                            ? cs.surfaceVariant
-                                            : cs.surface,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color:
-                                          isSelected
-                                              ? cs.primary
-                                              : cs.outline.withOpacity(0.3),
-                                      width: isSelected ? 2 : 1,
-                                    ),
-                                    boxShadow:
-                                        isSelected
-                                            ? [
-                                              BoxShadow(
-                                                color: cs.primary.withOpacity(
-                                                  0.25,
-                                                ),
-                                                blurRadius: 6,
-                                                offset: const Offset(0, 3),
-                                              ),
-                                            ]
-                                            : null,
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      mood['emoji']!,
-                                      style: const TextStyle(fontSize: 26),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }),
-                          ),
-                        ),
-
-                        // const SizedBox(height: 20),
-                        SizedBox(height: 8),
-                        Center(
-                          child: Text(
-                            moods[_selectedMoodIndex]['label']!,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: cs.primary,
-                            ),
-                          ),
-                        ),
-
-                        SizedBox(height: 8),
-
-   
-                        GestureDetector(
-                          onTap: () async {
-                            final bloc = context.read<AppDetailsBloc>();
-                            final selectedMood =
-                                moods[_selectedMoodIndex]['value'] ?? '';
-                            bloc.add(
-                              CreateJournalEntryEvent(
-                                title: _titleController.text.trim(),
-                                notes: _yourThought.text.trim(),
-                                aiPrompt: widget.aiPrompt.toString(),
-                                aiReflection: _notesController.text.trim(),
-                                mood: selectedMood,
-                                imagePath: profileImage?.path,
-                              ),
-                            );
-                          },
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(28),
-                              gradient: primaryGradient,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: cs.primary.withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: Center(
-                              child: Text(
-                                LanguageHelper.t('journal_btn_save_entry'),
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: cs.onPrimary,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
-                      ],
-                    ),
+  @override
+  Widget build(BuildContext context) {
+    final text = context.textTheme;
+    final img = image;
+    return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('journal_add_photo_title'.tr(), style: text.titleSmall),
+          AppSpacing.gapXs,
+          Text('journal_add_photo_subtitle'.tr(), style: text.bodySmall),
+          AppSpacing.gapMd,
+          if (img != null) ...[
+            Stack(
+              children: [
+                JournalPhoto(
+                  source: img.path,
+                  height: 180,
+                  width: double.infinity,
+                ),
+                PositionedDirectional(
+                  top: AppSpacing.xs,
+                  end: AppSpacing.xs,
+                  child: AppIconButton(
+                    icon: Icons.close_rounded,
+                    tooltip: 'ai_remove_image'.tr(),
+                    variant: AppIconButtonVariant.tonal,
+                    onPressed: enabled ? onRemove : null,
                   ),
                 ),
-              );
-            },
-          );
-        },
+              ],
+            ),
+            AppSpacing.gapMd,
+          ],
+          AppButton.outlined(
+            label:
+                img == null
+                    ? 'journal_add_photo_button'.tr()
+                    : 'journal_photo_change'.tr(),
+            leadingIcon: Icons.add_photo_alternate_outlined,
+            expand: false,
+            onPressed: enabled ? onChoose : null,
+          ),
+        ],
       ),
     );
   }

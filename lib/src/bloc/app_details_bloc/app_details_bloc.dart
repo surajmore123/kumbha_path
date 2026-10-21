@@ -298,7 +298,6 @@ class AppDetailsBloc extends Bloc<AppDetailsEvent, AppDetailsState> {
     Map<String, String> jsonData = {"access_token": token.toString()};
 
     final result = await templeRepository.getAiReflection(jsonData);
-    print('ai reflection result $result');
     if (result != null && result['status'] == 'success') {
       emit(
         state.copyWith(
@@ -325,7 +324,6 @@ class AppDetailsBloc extends Bloc<AppDetailsEvent, AppDetailsState> {
     final token = await storage.read(key: 'access_token');
     Map<String, String> jsonData = {"access_token": token.toString()};
     final result = await templeRepository.getAiPrompt(jsonData);
-    print('ai prompt result $result');
     if (result != null && result['status'] == 'success') {
       emit(
         state.copyWith(
@@ -366,11 +364,9 @@ class AppDetailsBloc extends Bloc<AppDetailsEvent, AppDetailsState> {
       jsonData["photo"] = event.imagePath!;
     }
 
-    print('payload ---$jsonData');
 
     final result = await templeRepository.createJournalEntry(jsonData);
 
-    print('create journal entry result $result');
 
     if (result != null && result['status'] == 'success') {
       emit(
@@ -447,7 +443,6 @@ class AppDetailsBloc extends Bloc<AppDetailsEvent, AppDetailsState> {
     };
 
     final result = await templeRepository.getJournalDetail(jsonData);
-    print('journal detail result $result');
     if (result != null) {
       emit(
         state.copyWith(

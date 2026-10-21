@@ -1,464 +1,569 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-
 import 'package:kumbha_path/main_layout.dart';
 import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_bloc.dart';
 import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_event.dart';
 import 'package:kumbha_path/src/bloc/main_bloc/app_bloc.dart';
 import 'package:kumbha_path/src/bloc/main_bloc/app_event.dart';
 import 'package:kumbha_path/src/bloc/main_bloc/app_state.dart';
-
-import 'package:kumbha_path/src/constant/app_color.dart';
-import 'package:kumbha_path/src/constant/app_responsive.dart';
-import 'package:kumbha_path/src/constant/language_helper.dart';
+import 'package:kumbha_path/src/components/components.dart';
+import 'package:kumbha_path/src/constant/design_system/design_system.dart';
 import 'package:kumbha_path/src/constant/location_service.dart';
+import 'package:kumbha_path/src/constant/place_format.dart';
+import 'package:kumbha_path/src/models/near_temple.dart';
+import 'package:kumbha_path/src/modules/temple_explorer/temple_detail_screen.dart';
+import 'package:kumbha_path/src/modules/temple_explorer/widgets/temple_card.dart';
+import 'package:kumbha_path/src/modules/temple_explorer/widgets/temple_map.dart';
 
+/// `/nearTemples`: temples around the user from the nearby-temples API.
+///
+/// Arguments (optional, as sent by the dashboard): `{'lat': .., 'lng': ..}`.
+/// Without them the screen checks location permission and, only when the
+/// user taps "Allow location", shows the system prompt.
+///
+/// The only filter the API supports is the search radius; there is no
+/// search or category parameter, so none is shown.
 class NearTemples extends StatefulWidget {
-  const NearTemples({super.key});
+  const NearTemples({super.key, this.location});
+
+  /// Injected in tests.
+  final LocationGateway? location;
 
   @override
   State<NearTemples> createState() => _NearTemplesState();
 }
 
-class _NearTemplesState extends State<NearTemples> {
+class _NearTemplesState extends State<NearTemples> with WidgetsBindingObserver {
+  static const List<int> radiusOptions = [2, 5, 10];
+  static const int pageSize = 5;
+
+  late final LocationGateway _location =
+      widget.location ?? const LocationGateway();
+
   int selectedRadius = 5;
-  bool _locationInitialized = false;
+  bool _initialized = false;
   double? userLat;
   double? userLng;
+
+  /// `null` while checking; meaningful only when coordinates are missing.
+  LocationAccess? _access;
+  bool _loadingMore = false;
+
+  bool get _hasPosition => userLat != null && userLng != null;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Returning from system settings may have fixed location access.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_hasPosition) _checkAccess();
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (_initialized) return;
+    _initialized = true;
 
-    if (_locationInitialized) return;
+    final bloc = context.read<AppBloc>();
+    final loadedRadius = bloc.state.nearbyTemples.radiusKm?.round();
+    if (radiusOptions.contains(loadedRadius)) selectedRadius = loadedRadius!;
 
-    final args =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-
-    if (args != null && args['lat'] != null && args['lng'] != null) {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map && args['lat'] != null && args['lng'] != null) {
       userLat = double.tryParse(args['lat'].toString());
       userLng = double.tryParse(args['lng'].toString());
-    } else {
-      final state = context.read<AppBloc>().state;
-
-      if (state.lastUserLat != null && state.lastUserLng != null) {
-        userLat = double.tryParse(state.lastUserLat!);
-        userLng = double.tryParse(state.lastUserLng!);
-      } else {
-        _requestLocationAgain();
-        return;
-      }
+    } else if (bloc.state.lastUserLat != null &&
+        bloc.state.lastUserLng != null) {
+      userLat = double.tryParse(bloc.state.lastUserLat!);
+      userLng = double.tryParse(bloc.state.lastUserLng!);
     }
 
-    _locationInitialized = true;
+    if (_hasPosition) {
+      // The dashboard has normally loaded these already; don't refetch.
+      if (bloc.state.status == AppStatus.initial) _load();
+    } else {
+      _checkAccess();
+    }
   }
 
-  Future<void> _requestLocationAgain() async {
-    final position = await LocationService.getCurrentLocation();
-
-    userLat = position.latitude;
-    userLng = position.longitude;
-
-    context.read<AppBloc>().add(
-      GetNearbyTemplesEvent(
-        latitude: userLat!.toString(),
-        longitude: userLng!.toString(),
-        radius: selectedRadius.toString(),
-        limit: 5,
-      ),
-    );
-
-    setState(() {
-      _locationInitialized = true;
-    });
+  Future<void> _checkAccess() async {
+    final access = await _location.currentAccess();
+    if (!mounted) return;
+    if (access == LocationAccess.available) {
+      await _requestPosition();
+    } else {
+      setState(() => _access = access);
+    }
   }
 
-  void _changeRadius(int radius) {
-    setState(() => selectedRadius = radius);
+  /// May show the system permission prompt (user-initiated, or when
+  /// permission is already granted).
+  Future<void> _requestPosition() async {
+    setState(() => _access = null);
+    try {
+      final position = await _location.currentPosition();
+      if (!mounted) return;
+      setState(() {
+        userLat = position.latitude;
+        userLng = position.longitude;
+      });
+      _load();
+    } catch (_) {
+      final access = await _location.currentAccess();
+      if (!mounted) return;
+      setState(
+        () =>
+            _access =
+                access == LocationAccess.available
+                    ? LocationAccess.needsPermission
+                    : access,
+      );
+      ScaffoldMessenger.maybeOf(context)
+        ?..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('dash_location_error'.tr())));
+    }
+  }
 
+  /// Same event and parameters as before (limit 5, cursor for "more").
+  void _load({bool more = false}) {
+    if (!_hasPosition) return;
+    if (more) setState(() => _loadingMore = true);
     context.read<AppBloc>().add(
       GetNearbyTemplesEvent(
         latitude: userLat.toString(),
         longitude: userLng.toString(),
-        radius: radius.toString(),
-        limit: 5,
+        radius: selectedRadius.toString(),
+        limit: pageSize,
+        isLoadMore: more,
       ),
     );
   }
 
-  void _showRadiusSelector() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder:
-          (_) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children:
-                [2, 5, 10].map((km) {
-                  return ListTile(
-                    title: Text("$km km radius"),
-                    trailing:
-                        selectedRadius == km ? const Icon(Icons.check) : null,
-                    onTap: () {
-                      Navigator.pop(context);
-                      _changeRadius(km);
-                    },
-                  );
-                }).toList(),
-          ),
+  void _changeRadius(int radius) {
+    if (radius == selectedRadius) return;
+    setState(() => selectedRadius = radius);
+    _load();
+  }
+
+  /// Same flow as before: request the detail into the shared
+  /// AppDetailsBloc, then open `/templeDetail`. The arguments are new and
+  /// optional; they let the detail screen retry a failed load.
+  void _openTemple(TempleModel temple) {
+    final id = temple.templeId.toString();
+    final lat = userLat?.toString() ?? '';
+    final lng = userLng?.toString() ?? '';
+    context.read<AppDetailsBloc>().add(
+      GetTempleDetail(templeId: id, latitude: lat, longitude: lng),
     );
-  }
-
-  double _zoomForRadius(int radiusKm) {
-    switch (radiusKm) {
-      case 2:
-        return 14.5;
-      case 5:
-        return 13.5;
-      case 10:
-        return 12.5;
-      default:
-        return 13.5;
-    }
-  }
-
-  LatLng _midPoint(LatLng a, LatLng b) {
-    return LatLng(
-      (a.latitude + b.latitude) / 2,
-      (a.longitude + b.longitude) / 2,
+    Navigator.pushNamed(
+      context,
+      '/templeDetail',
+      arguments: TempleDetailArgs(templeId: id, latitude: lat, longitude: lng),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final isMobile = context.isMobile;
-    final isTablet = context.isTablet;
-    final isDesktop = context.isDesktop;
+    final locale =
+        EasyLocalization.of(context)?.locale.languageCode ??
+        Localizations.localeOf(context).languageCode;
 
     return MainLayout(
       showDefaultBottom: true,
       ctx: 0,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        centerTitle: true,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: cs.onSurface),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          "Nearby Temples",
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: GestureDetector(
-              onTap: _showRadiusSelector,
-              child: Chip(
-                label: Text("$selectedRadius km"),
-                avatar: const Icon(Icons.tune, size: 18),
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: ValueListenableBuilder<String>(
-        valueListenable: LanguageHelper.currentLang,
-        builder: (context, lang, _) {
-          final titleStyle = Theme.of(
-            context,
-          ).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w700,
-            fontSize:
-                isMobile
-                    ? 18
-                    : isTablet
-                    ? 20
-                    : 22,
-          );
-
-          final subtitleStyle = Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(
-            fontSize: isMobile ? 13 : 14,
-            color: Colors.grey[700],
-            height: 1.4,
-          );
-          return BlocBuilder<AppBloc, AppState>(
-            builder: (context, state) {
-              if (userLat == null || userLng == null) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              final temples = state.nearbyTemples?.temples ?? [];
-
-              if (temples.isEmpty) {
-                return const Center(child: Text("No nearby temples found"));
-              }
-
-              // nearest temple (already sorted OR compute)
-              final nearestTemple = temples.reduce((a, b) {
-                return (a.distanceKm ?? double.infinity) <
-                        (b.distanceKm ?? double.infinity)
-                    ? a
-                    : b;
-              });
-
-              return ListView(
-                padding: EdgeInsets.symmetric(
-                  horizontal:
-                      isMobile
-                          ? 16
-                          : isTablet
-                          ? 32
-                          : 56,
-                  vertical: isMobile ? 16 : 24,
-                ),
-                children: [
-                  Card(
-                    color: Colors.white,
-                    elevation: 1.5,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Center(
-                        child: SizedBox(
-                          width: isMobile ? 260 : 300,
-                          height: isMobile ? 260 : 300,
-                          child: ClipOval(
-                            child: GoogleMap(
-                              initialCameraPosition: CameraPosition(
-                                target: LatLng(
-                                  nearestTemple.latitude!,
-                                  nearestTemple.longitude!,
-                                ),
-                                zoom: _zoomForRadius(selectedRadius),
-                              ),
-
-                              // 🔴 REMOVE user location completely
-                              myLocationEnabled: false,
-                              myLocationButtonEnabled: false,
-
-                              zoomControlsEnabled: false,
-                              compassEnabled: false,
-                              mapToolbarEnabled: false,
-                              scrollGesturesEnabled: false,
-                              zoomGesturesEnabled: false,
-                              rotateGesturesEnabled: false,
-                              tiltGesturesEnabled: false,
-
-                              markers: {
-                                Marker(
-                                  markerId: const MarkerId('nearestTemple'),
-                                  position: LatLng(
-                                    nearestTemple.latitude!,
-                                    nearestTemple.longitude!,
-                                  ),
-                                  icon: BitmapDescriptor.defaultMarkerWithHue(
-                                    BitmapDescriptor.hueOrange,
-                                  ),
-                                  infoWindow: InfoWindow(
-                                    title: nearestTemple.name,
-                                  ),
-                                ),
-                              },
-
-                              circles: {
-                                Circle(
-                                  circleId: const CircleId('radius'),
-                                  center: LatLng(
-                                    nearestTemple.latitude!,
-                                    nearestTemple.longitude!,
-                                  ),
-                                  radius: selectedRadius * 1000, // meters
-                                  fillColor: Colors.orange.withOpacity(0.08),
-                                  strokeColor: Colors.orange.withOpacity(0.35),
-                                  strokeWidth: 1,
-                                ),
-                              },
-                            ),
-                          ),
-
-                          // ClipOval(
-                          //   child: Image.asset(
-                          //     'assets/images/map_circle.png',
-                          //     fit: BoxFit.cover,
-                          //   ),
-                          // ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-                  ...temples.map(
-                    (temple) => Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _TempleCard(
-                        title: temple.name ?? '',
-                        distanceaway:
-                            "${temple.distanceKm?.toStringAsFixed(2)} km away",
-                        crowdLevel:
-                            " Crowd Level : ${temple.crowdLevel.toString()}",
-                        imagePath:
-                            temple.imageUrl ?? 'assets/images/placeholder.jpg',
-                        onTap: () {
-                          context.read<AppDetailsBloc>().add(
-                            GetTempleDetail(
-                              templeId: temple.templeId.toString(),
-                              latitude: userLat.toString(),
-                              longitude: userLng.toString(),
-                            ),
-                          );
-                          Navigator.pushNamed(context, '/templeDetail');
-
-                          // Navigator.pushNamed(
-                          //   context,
-                          //   '/templeDetail',
-                          //   arguments: temple,
-                          // );
-                        },
-                      ),
-                    ),
-                  ),
-
-                  if (temples.length < (state.nearbyTemples.count ?? 0))
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          context.read<AppBloc>().add(
-                            GetNearbyTemplesEvent(
-                              latitude: userLat.toString(),
-                              longitude: userLng.toString(),
-                              radius: selectedRadius.toString(),
-                              limit: 5,
-                              isLoadMore: true,
-                            ),
-                          );
-                        },
-                        child: const Text("Load More"),
-                      ),
-                    ),
-                ],
+      appBar: AppAppBar(title: 'temple_explorer_title'.tr()),
+      body: BlocConsumer<AppBloc, AppState>(
+        listenWhen:
+            (prev, next) =>
+                prev.status != next.status ||
+                prev.nearbyTemples != next.nearbyTemples,
+        listener: (context, state) {
+          if (_loadingMore && state.status != AppStatus.loading) {
+            setState(() => _loadingMore = false);
+          }
+        },
+        builder: (context, state) {
+          return RefreshIndicator(
+            onRefresh: () async {
+              if (!_hasPosition) return _checkAccess();
+              final done = context.read<AppBloc>().stream.firstWhere(
+                (s) => s.status != AppStatus.loading,
+              );
+              _load();
+              await done.timeout(
+                const Duration(seconds: 30),
+                onTimeout: () => state,
               );
             },
+            child: LayoutBuilder(
+              builder:
+                  (context, constraints) => ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpacing.pageGutter,
+                      AppSpacing.sm,
+                      AppSpacing.pageGutter,
+                      AppSpacing.huge,
+                    ),
+                    children: [
+                      Text(
+                        'temple_intro'.tr(),
+                        style: context.textTheme.bodyLarge?.copyWith(
+                          color: context.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      AppSpacing.gapLg,
+                      ..._content(state, locale, constraints.maxWidth),
+                    ],
+                  ),
+            ),
           );
         },
       ),
     );
   }
+
+  List<Widget> _content(AppState state, String locale, double width) {
+    if (!_hasPosition) {
+      return [
+        switch (_access) {
+          null => const _ListSkeleton(),
+          LocationAccess.unavailable => AppCard(
+            padding: EdgeInsets.zero,
+            child: AppEmptyState(
+              compact: true,
+              icon: Icons.location_disabled_outlined,
+              title: 'temple_location_title'.tr(),
+              message: 'temple_location_off'.tr(),
+              actionLabel: 'temple_open_settings'.tr(),
+              actionIcon: Icons.settings_outlined,
+              onAction: _location.openSettings,
+            ),
+          ),
+          _ => AppCard(
+            padding: EdgeInsets.zero,
+            child: AppEmptyState(
+              compact: true,
+              icon: Icons.near_me_outlined,
+              title: 'temple_location_title'.tr(),
+              message: 'temple_location_message'.tr(),
+              actionLabel: 'dash_location_allow'.tr(),
+              actionIcon: Icons.my_location,
+              onAction: _requestPosition,
+            ),
+          ),
+        },
+      ];
+    }
+
+    final temples = state.nearbyTemples.temples ?? const <TempleModel>[];
+    final total = state.nearbyTemples.count ?? temples.length;
+    final loading = state.status == AppStatus.loading && !_loadingMore;
+
+    final header = <Widget>[
+      _RadiusSelector(
+        selected: selectedRadius,
+        options: radiusOptions,
+        enabled: !loading,
+        onSelected: _changeRadius,
+      ),
+      AppSpacing.gapLg,
+    ];
+
+    if (loading || state.status == AppStatus.initial) {
+      return [...header, const _ListSkeleton()];
+    }
+    if (state.status == AppStatus.failure) {
+      return [
+        ...header,
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: AppErrorView(compact: true, onRetry: _load),
+        ),
+      ];
+    }
+    if (temples.isEmpty) {
+      final wider = radiusOptions.where((r) => r > selectedRadius);
+      return [
+        ...header,
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: AppEmptyState(
+            compact: true,
+            icon: Icons.temple_hindu_outlined,
+            title: 'temple_empty_title'.tr(args: ['$selectedRadius']),
+            message: wider.isEmpty ? null : 'temple_empty_message'.tr(),
+            actionLabel:
+                wider.isEmpty
+                    ? null
+                    : 'temple_widen_radius'.tr(args: ['${wider.first}']),
+            onAction: wider.isEmpty ? null : () => _changeRadius(wider.first),
+          ),
+        ),
+      ];
+    }
+
+    return [
+      ...header,
+      _TempleMapPreview(
+        temples: temples,
+        user: LatLng(userLat!, userLng!),
+        radiusKm: selectedRadius,
+        locale: locale,
+        onOpenTemple: _openTemple,
+      ),
+      AppSpacing.gapLg,
+      Text(
+        'temple_showing'.tr(
+          namedArgs: {
+            'shown': '${temples.length}',
+            'total': '${total < temples.length ? temples.length : total}',
+            'radius': '$selectedRadius',
+          },
+        ),
+        style: context.textTheme.labelLarge?.copyWith(
+          color: context.colorScheme.onSurfaceVariant,
+        ),
+      ),
+      AppSpacing.gapMd,
+      _TempleGrid(
+        temples: temples,
+        width: width - AppSpacing.pageGutter * 2,
+        locale: locale,
+        onOpen: _openTemple,
+      ),
+      // Same condition as before for offering the next page.
+      if (temples.length < (state.nearbyTemples.count ?? 0)) ...[
+        AppSpacing.gapLg,
+        Center(
+          child: AppButton.outlined(
+            label: 'temple_load_more'.tr(),
+            leadingIcon: Icons.expand_more_rounded,
+            isLoading: _loadingMore,
+            expand: false,
+            onPressed: () => _load(more: true),
+          ),
+        ),
+      ],
+    ];
+  }
 }
 
-class _TempleCard extends StatelessWidget {
-  final String title;
-  final String distanceaway;
-  final String crowdLevel;
-  final String imagePath;
-  final VoidCallback? onTap;
-
-  const _TempleCard({
-    required this.title,
-    required this.distanceaway,
-    required this.crowdLevel,
-    required this.imagePath,
-    this.onTap,
+class _RadiusSelector extends StatelessWidget {
+  const _RadiusSelector({
+    required this.selected,
+    required this.options,
+    required this.enabled,
+    required this.onSelected,
   });
+
+  final int selected;
+  final List<int> options;
+  final bool enabled;
+  final ValueChanged<int> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('temple_radius_label'.tr(), style: context.textTheme.titleSmall),
+        AppSpacing.gapSm,
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            for (final km in options)
+              ChoiceChip(
+                label: Text('temple_radius_km'.tr(args: ['$km'])),
+                selected: km == selected,
+                onSelected: enabled ? (_) => onSelected(km) : null,
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: buildThemeGradient(context, isPrimary: true),
-        borderRadius: BorderRadius.circular(18),
+/// Non-interactive overview: the user, the search radius and each temple
+/// that has coordinates. Tapping a marker's label opens that temple.
+class _TempleMapPreview extends StatelessWidget {
+  const _TempleMapPreview({
+    required this.temples,
+    required this.user,
+    required this.radiusKm,
+    required this.locale,
+    required this.onOpenTemple,
+  });
+
+  final List<TempleModel> temples;
+  final LatLng user;
+  final int radiusKm;
+  final String locale;
+  final ValueChanged<TempleModel> onOpenTemple;
+
+  static const double _height = 200;
+
+  static double zoomForRadius(int km) => switch (km) {
+    2 => 13.5,
+    5 => 12.2,
+    _ => 11.2,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colorScheme;
+    final markers = <Marker>{
+      Marker(
+        markerId: const MarkerId('user'),
+        position: user,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        zIndexInt: 1,
       ),
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        children: [
-          // TEXT
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: cs.onPrimary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  distanceaway,
-                  style: TextStyle(
-                    color: cs.onPrimary.withOpacity(0.85),
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 6),
-
-                Text(
-                  crowdLevel,
-                  style: TextStyle(
-                    color: cs.onPrimary.withOpacity(0.85),
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 6),
-
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: ElevatedButton(
-                    onPressed: onTap,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: cs.onPrimary,
-                      foregroundColor: cs.primary,
-                      shape: const StadiumBorder(),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 8,
+      for (final t in temples)
+        if (parseTempleLatLng(t.latitude, t.longitude) case final pos?)
+          Marker(
+            markerId: MarkerId('temple-${t.templeId}'),
+            position: pos,
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueOrange,
+            ),
+            infoWindow: InfoWindow(
+              title: t.name,
+              snippet:
+                  formatDistanceKm(t.distanceKm, locale) == null
+                      ? null
+                      : 'dash_km_away'.tr(
+                        args: [formatDistanceKm(t.distanceKm, locale)!],
                       ),
-                    ),
-                    child: const Text("Learn More"),
-                  ),
-                ),
-              ],
+              onTap: () => onOpenTemple(t),
             ),
           ),
+    };
 
-          const SizedBox(width: 12),
-
-          // IMAGE
-          ClipRRect(
-            borderRadius: BorderRadius.circular(14),
-            child: Image.network(
-              imagePath,
-              width: 80,
-              height: 80,
-              fit: BoxFit.cover,
-              errorBuilder:
-                  (_, __, ___) => Image.asset(
-                    'assets/images/placeholder.png',
-                    width: 80,
-                    height: 80,
-                    fit: BoxFit.cover,
+    return Semantics(
+      label: 'temple_map_preview'.tr(),
+      child: ClipRRect(
+        borderRadius: AppRadius.cardAll,
+        child: DecoratedBox(
+          position: DecorationPosition.foreground,
+          decoration: BoxDecoration(
+            borderRadius: AppRadius.cardAll,
+            border: Border.all(color: context.semanticColors.border),
+          ),
+          child: SizedBox(
+            height: _height,
+            child: TempleMap(
+              config: TempleMapConfig(
+                target: user,
+                zoom: zoomForRadius(radiusKm),
+                interactive: false,
+                markers: markers,
+                circles: {
+                  Circle(
+                    circleId: const CircleId('radius'),
+                    center: user,
+                    radius: radiusKm * 1000.0,
+                    fillColor: colors.primary.withValues(alpha: 0.08),
+                    strokeColor: colors.primary.withValues(alpha: 0.45),
+                    strokeWidth: 1,
                   ),
+                },
+              ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 1 column on phones, 2 on tablets, 3 on wide screens.
+class _TempleGrid extends StatelessWidget {
+  const _TempleGrid({
+    required this.temples,
+    required this.width,
+    required this.locale,
+    required this.onOpen,
+  });
+
+  final List<TempleModel> temples;
+  final double width;
+  final String locale;
+  final ValueChanged<TempleModel> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final columns =
+        width >= 960
+            ? 3
+            : width >= 560
+            ? 2
+            : 1;
+    final rows = <Widget>[];
+    for (var i = 0; i < temples.length; i += columns) {
+      if (rows.isNotEmpty) rows.add(AppSpacing.gapLg);
+      final slice = temples.skip(i).take(columns).toList();
+      rows.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var j = 0; j < columns; j++) ...[
+              if (j > 0) AppSpacing.gapLg,
+              Expanded(
+                child:
+                    j < slice.length
+                        ? TempleCard(
+                          temple: slice[j],
+                          locale: locale,
+                          onTap: () => onOpen(slice[j]),
+                        )
+                        : const SizedBox.shrink(),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+    return Column(children: rows);
+  }
+}
+
+class _ListSkeleton extends StatelessWidget {
+  const _ListSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    Widget block(double h) => Container(
+      height: h,
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerHigh,
+        borderRadius: AppRadius.cardAll,
+      ),
+    );
+    return Semantics(
+      label: 'common_loading'.tr(),
+      child: Column(
+        children: [
+          block(200),
+          AppSpacing.gapLg,
+          block(240),
+          AppSpacing.gapLg,
+          block(240),
         ],
       ),
     );
