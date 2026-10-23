@@ -20,6 +20,15 @@ import 'package:kumbha_path/src/modules/live_crowd/widgets/live_info.dart';
 import 'package:kumbha_path/src/modules/live_updates/live_updates.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Finds exactly [text], where the space before AM/PM may be a normal or a
+/// narrow no-break space (U+202F, used by newer intl/CLDR time formats).
+Finder findTimeText(String text) {
+  final pattern = RegExp(
+    '^${RegExp.escape(text).replaceAllMapped(RegExp(r' (AM|PM)'), (m) => '[  ]${m[1]}')}\$',
+  );
+  return find.textContaining(pattern);
+}
+
 // ------------------------------------------------------------------ fakes
 
 typedef Responder =
@@ -447,7 +456,7 @@ void main() {
       final b = Backend();
       await pumpScreen(tester, crowdMap(b));
       await sheetTo(tester, find.text('Heavy crowd near the ghat'));
-      expect(find.text('Started Today, 8:30 AM'), findsOneWidget);
+      expect(findTimeText('Started Today, 8:30 AM'), findsOneWidget);
       expect(find.text('High'), findsWidgets);
       await tester.tap(find.text('Heavy crowd near the ghat'));
       await settle(tester);
@@ -538,8 +547,8 @@ void main() {
       final a = tester.getTopLeft(find.text('Crowd surge at Ramkund')).dy;
       final c = tester.getTopLeft(find.text('Aarti timings')).dy;
       expect(a, lessThan(c));
-      expect(find.text('Today, 8:30 AM'), findsOneWidget);
-      expect(find.text('Yesterday, 7:05 PM'), findsOneWidget);
+      expect(findTimeText('Today, 8:30 AM'), findsOneWidget);
+      expect(findTimeText('Yesterday, 7:05 PM'), findsOneWidget);
       expect(find.text('Alert'), findsWidgets);
       expect(find.text('High'), findsWidgets);
       // Unparseable timestamp: no time shown, no crash.

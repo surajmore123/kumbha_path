@@ -16,6 +16,7 @@ export 'feedback/status_pill.dart';
 export 'inputs/app_text_field.dart';
 export 'layout/app_section_header.dart';
 export 'loader/center_loader.dart';
+export 'motion/fade_slide_in.dart';
 export 'navigation/app_app_bar.dart';
 export 'navigation/app_bottom_navigation.dart';
 export 'navigation/app_navigation.dart';

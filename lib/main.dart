@@ -10,6 +10,7 @@ import 'package:kumbha_path/src/bloc/main_bloc/app_bloc.dart';
 import 'package:kumbha_path/src/bloc/user_bloc/user_bloc.dart';
 
 import 'package:kumbha_path/src/bloc/webhook_bloc/webhook_bloc.dart';
+import 'package:kumbha_path/src/bloc/website_bloc/website_bloc.dart';
 import 'package:kumbha_path/src/components/navigation/app_navigation.dart';
 import 'package:kumbha_path/src/constant/config.dart';
 import 'package:kumbha_path/src/constant/design_system/app_typography.dart';
@@ -111,6 +112,7 @@ class MyApp extends StatelessWidget {
         BlocProvider<WebhookBloc>(create: (context) => WebhookBloc()),
         BlocProvider<AppBloc>(create: (context) => AppBloc()),
         BlocProvider<AppDetailsBloc>(create: (context) => AppDetailsBloc()),
+        BlocProvider<WebsiteBloc>(create: (context) => WebsiteBloc()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {

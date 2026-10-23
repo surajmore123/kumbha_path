@@ -13,7 +13,11 @@ import 'package:kumbha_path/src/modules/live_crowd/live_crowd_map.dart';
 import 'package:kumbha_path/src/modules/live_updates/live_updates.dart';
 import 'package:kumbha_path/src/modules/login_screen/login_screen.dart';
 import 'package:kumbha_path/src/modules/login_screen/otp_verify_screen.dart';
+import 'package:kumbha_path/src/models/website_models.dart';
 import 'package:kumbha_path/src/modules/setting/setting.dart';
+import 'package:kumbha_path/src/modules/website/announcements_screen.dart';
+import 'package:kumbha_path/src/modules/website/listing_detail_screen.dart';
+import 'package:kumbha_path/src/modules/website/services_screen.dart';
 import 'package:kumbha_path/src/modules/temple_explorer/near_temples.dart';
 import 'package:kumbha_path/src/modules/temple_explorer/temple_detail_screen.dart';
 
@@ -97,6 +101,34 @@ class AppRouter {
         return MaterialPageRoute(
           settings: routeSettings,
           builder: (_) => const TempleDetailsScreen(),
+        );
+
+      case '/announcements':
+        return MaterialPageRoute(
+          settings: routeSettings,
+          builder: (_) => const AnnouncementsScreen(),
+        );
+
+      case '/services':
+        return MaterialPageRoute(
+          settings: routeSettings,
+          builder:
+              (_) => ServicesScreen(
+                initialCategory: routeSettings.arguments as ListingCategory?,
+              ),
+        );
+
+      case '/listingDetail':
+        final listing = routeSettings.arguments;
+        if (listing is! Listing) {
+          return MaterialPageRoute(
+            settings: routeSettings,
+            builder: (_) => const ServicesScreen(),
+          );
+        }
+        return MaterialPageRoute(
+          settings: routeSettings,
+          builder: (_) => ListingDetailScreen(listing: listing),
         );
 
       case '/setting':

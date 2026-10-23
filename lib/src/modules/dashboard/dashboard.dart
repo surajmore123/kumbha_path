@@ -11,6 +11,9 @@ import 'package:kumbha_path/src/bloc/main_bloc/app_state.dart';
 import 'package:kumbha_path/src/bloc/user_bloc/user_bloc.dart';
 import 'package:kumbha_path/src/bloc/user_bloc/user_event.dart';
 import 'package:kumbha_path/src/bloc/user_bloc/user_state.dart';
+import 'package:kumbha_path/src/bloc/website_bloc/website_bloc.dart';
+import 'package:kumbha_path/src/bloc/website_bloc/website_event.dart';
+import 'package:kumbha_path/src/bloc/website_bloc/website_state.dart';
 import 'package:kumbha_path/src/components/components.dart';
 import 'package:kumbha_path/src/constant/design_system/design_system.dart';
 import 'package:kumbha_path/src/constant/language_helper.dart';
@@ -26,6 +29,8 @@ import 'package:kumbha_path/src/modules/dashboard/widgets/upcoming_events_sectio
 import 'package:kumbha_path/src/modules/dashboard/widgets/welcome_hero.dart';
 import 'package:kumbha_path/src/modules/temple_explorer/temple_detail_screen.dart'
     show TempleDetailArgs;
+import 'package:kumbha_path/src/modules/website/widgets/website_widgets.dart'
+    show AnnouncementBanner;
 
 /// Home tab: the pilgrim's overview of the Nashik Kumbh.
 ///
@@ -46,6 +51,16 @@ class Dashboard extends StatefulWidget {
 class _DashboardState extends State<Dashboard> {
   late final DashboardController _controller;
   late final bool _ownsController;
+  WebsiteBloc? _website;
+
+  Future<void> _refreshAll() async {
+    final website = _website;
+    await Future.wait([
+      _controller.refresh(),
+      if (website != null)
+        loadAndWait(website.add, (done) => LoadAnnouncements(done: done)),
+    ]);
+  }
 
   static const double _maxContentWidth = 720;
 
@@ -57,6 +72,14 @@ class _DashboardState extends State<Dashboard> {
         widget.controller ??
         DashboardController(templesBloc: context.read<AppBloc>());
     _controller.start();
+
+    // Website notices (admin panel). Optional so screens/tests without the
+    // app-wide WebsiteBloc still build; the banner is simply hidden.
+    try {
+      _website = context.read<WebsiteBloc>()..add(const LoadAnnouncements());
+    } on ProviderNotFoundException {
+      _website = null;
+    }
 
     // Greeting name: reuse a profile already loaded (e.g. by Settings),
     // otherwise make the same request Settings makes.
@@ -149,7 +172,7 @@ class _DashboardState extends State<Dashboard> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _controller.refresh,
+        onRefresh: _refreshAll,
         child: LayoutBuilder(
           builder: (context, constraints) {
             final side = math.max(
@@ -179,6 +202,37 @@ class _DashboardState extends State<Dashboard> {
         selector: (state) => state.profileData?.fullName,
         builder: (context, name) => WelcomeHero(fullName: name),
       ),
+
+      // Top website announcement (pinned first); hidden when none.
+      if (_website != null)
+        BlocBuilder<WebsiteBloc, WebsiteState>(
+          bloc: _website,
+          buildWhen: (a, b) => a.announcements != b.announcements,
+          builder: (context, state) {
+            final top =
+                state.announcements.isEmpty ? null : state.announcements.first;
+            return AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder:
+                  (child, animation) => SizeTransition(
+                    sizeFactor: animation,
+                    child: FadeTransition(opacity: animation, child: child),
+                  ),
+              child:
+                  top == null
+                      ? const SizedBox.shrink(key: ValueKey('none'))
+                      : Padding(
+                        key: ValueKey(top.id),
+                        padding: const EdgeInsets.only(top: AppSpacing.lg),
+                        child: AnnouncementBanner(
+                          announcement: top,
+                          more: state.announcements.length - 1,
+                          onTap: () => _push('/announcements'),
+                        ),
+                      ),
+            );
+          },
+        ),
 
       // Real alerts only; nothing is rendered while loading, on failure or
       // when there are none.
@@ -247,6 +301,16 @@ class _DashboardState extends State<Dashboard> {
               icon: Icons.campaign_outlined,
               labelKey: 'dash_action_updates',
               onTap: () => _push('/notifications'),
+            ),
+            QuickAction(
+              icon: Icons.hotel_outlined,
+              labelKey: 'dash_action_services',
+              onTap: () => _push('/services'),
+            ),
+            QuickAction(
+              icon: Icons.newspaper_outlined,
+              labelKey: 'dash_action_announcements',
+              onTap: () => _push('/announcements'),
             ),
           ],
         ),
