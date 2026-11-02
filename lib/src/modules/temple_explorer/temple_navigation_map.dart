@@ -8,6 +8,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:kumbha_path/src/components/components.dart';
 import 'package:kumbha_path/src/constant/design_system/design_system.dart';
 import 'package:kumbha_path/src/constant/location_service.dart';
+import 'package:kumbha_path/src/constant/place_format.dart';
 import 'package:kumbha_path/src/modules/temple_explorer/temple_directions.dart';
 import 'package:kumbha_path/src/modules/temple_explorer/widgets/temple_map.dart';
 
@@ -19,7 +20,9 @@ enum _RouteState { waitingForLocation, loading, ready, failed }
 ///
 /// The map is visible immediately, centred on the temple, while the user's
 /// location and the route load. Distance and duration are shown only when
-/// the Directions API returns them.
+/// the Directions API returns them. If the route can't be fetched, a dashed
+/// straight line joins the user and the temple, labelled as straight-line
+/// distance (never presented as the road route).
 class TempleNavigationMap extends StatefulWidget {
   final double templelat;
   final double templelng;
@@ -59,6 +62,21 @@ class _TempleNavigationMapState extends State<TempleNavigationMap> {
   static const double _cardReserve = 260;
 
   LatLng get _temple => LatLng(widget.templelat, widget.templelng);
+
+  /// Great-circle distance from the user to the temple, in km.
+  double? get _straightLineKm {
+    final user = _userLocation;
+    if (user == null) return null;
+    double rad(double d) => d * math.pi / 180;
+    final dLat = rad(_temple.latitude - user.latitude);
+    final dLng = rad(_temple.longitude - user.longitude);
+    final a =
+        math.pow(math.sin(dLat / 2), 2) +
+        math.cos(rad(user.latitude)) *
+            math.cos(rad(_temple.latitude)) *
+            math.pow(math.sin(dLng / 2), 2);
+    return 6371.0088 * 2 * math.asin(math.sqrt(a));
+  }
 
   @override
   void initState() {
@@ -178,6 +196,16 @@ class _TempleNavigationMapState extends State<TempleNavigationMap> {
                         color: colors.primary,
                         width: 6,
                         points: route.points,
+                      )
+                    else if (_routeState == _RouteState.failed &&
+                        _userLocation != null)
+                      Polyline(
+                        polylineId: const PolylineId('straight_line'),
+                        color: colors.primary,
+                        width: 4,
+                        geodesic: true,
+                        patterns: [PatternItem.dash(24), PatternItem.gap(14)],
+                        points: [_userLocation!, _temple],
                       ),
                   },
                   onMapCreated: (controller) {
@@ -250,6 +278,7 @@ class _TempleNavigationMapState extends State<TempleNavigationMap> {
                           templeName: widget.templeName,
                           routeState: _routeState,
                           route: route,
+                          straightLineKm: _straightLineKm,
                           locationFailed: _locationFailed,
                           travelMode: _travelMode,
                           onModeChanged:
@@ -302,6 +331,7 @@ class _RouteCard extends StatelessWidget {
     required this.templeName,
     required this.routeState,
     required this.route,
+    required this.straightLineKm,
     required this.locationFailed,
     required this.travelMode,
     required this.onModeChanged,
@@ -312,6 +342,7 @@ class _RouteCard extends StatelessWidget {
   final String templeName;
   final _RouteState routeState;
   final RouteSummary? route;
+  final double? straightLineKm;
   final bool locationFailed;
   final String travelMode;
   final ValueChanged<String>? onModeChanged;
@@ -345,10 +376,7 @@ class _RouteCard extends StatelessWidget {
           'map_finding_location'.tr(),
         ),
         _RouteState.loading => _Progress('map_route_loading'.tr()),
-        _RouteState.failed => Text(
-          'map_route_unavailable'.tr(),
-          style: text.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
-        ),
+        _RouteState.failed => _StraightLineStatus(km: straightLineKm),
         _RouteState.ready => Semantics(
           liveRegion: true,
           child: Text(
@@ -434,6 +462,43 @@ class _Progress extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Shown when the road route couldn't be fetched: says so, and gives the
+/// straight-line distance drawn on the map, clearly labelled as such.
+class _StraightLineStatus extends StatelessWidget {
+  const _StraightLineStatus({required this.km});
+
+  final double? km;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = context.textTheme;
+    final colors = context.colorScheme;
+    final locale =
+        EasyLocalization.of(context)?.locale.languageCode ??
+        Localizations.localeOf(context).languageCode;
+    final distance = formatDistanceKm(km, locale);
+    return Semantics(
+      liveRegion: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (distance != null)
+            Text(
+              'map_route_straight_km'.tr(args: [distance]),
+              style: text.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+          Text(
+            distance == null
+                ? 'map_route_unavailable'.tr()
+                : 'map_route_straight_note'.tr(),
+            style: text.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+          ),
+        ],
+      ),
     );
   }
 }

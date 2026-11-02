@@ -28,4 +28,12 @@ class UserRepository extends Repository {
   Future<dynamic> registerFcm(jsonData) async {
     return userApi.registerFcm(jsonData);
   }
+
+  Future<dynamic> getNotificationPreferences(Map<String, Object> jsonData) {
+    return userApi.getNotificationPreferences(jsonData);
+  }
+
+  Future<dynamic> updateNotificationPreferences(Map<String, Object> jsonData) {
+    return userApi.updateNotificationPreferences(jsonData);
+  }
 }

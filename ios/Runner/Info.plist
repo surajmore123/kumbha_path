@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Registered helpers use the camera to scan Kumbh Path safety cards.</string>
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -46,10 +50,14 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-<string>This app needs your location to show nearby temples.</string>
+<string>Kumbh Path uses your location to show nearby temples and, only when you choose to share it, to show your family where you are.</string>
 
 <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-<string>This app needs your location to show nearby temples.</string>
+<string>While you are sharing your location with your family, Kumbh Path keeps updating it when the app is in the background. It stops when you stop sharing or the time you chose ends.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 
 </dict>
 </plist>

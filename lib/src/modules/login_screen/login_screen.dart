@@ -208,6 +208,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
+                  AppSpacing.gapSm,
+                  Center(
+                    child: TextButton(
+                      onPressed:
+                          () => Navigator.pushNamed(context, '/opsSignIn'),
+                      child: Text('ops_sign_in_link'.tr()),
+                    ),
+                  ),
                 ],
               ),
             ),

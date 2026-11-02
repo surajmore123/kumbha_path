@@ -4,7 +4,7 @@ class JournalDetailsModel extends Equatable {
   final String? id;
   final String? title;
   final String? notes;
-   final String? aiPrompt;
+  final String? aiPrompt;
   final String? aiReflection;
   final String? mood;
   final String? photo;
@@ -23,15 +23,15 @@ class JournalDetailsModel extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        title,
-        notes,
-        aiPrompt,
-        aiReflection,
-        mood,
-        photo,
-        createdAt,
-      ];
+    id,
+    title,
+    notes,
+    aiPrompt,
+    aiReflection,
+    mood,
+    photo,
+    createdAt,
+  ];
 
   JournalDetailsModel copyWith({
     String? id,
@@ -47,7 +47,7 @@ class JournalDetailsModel extends Equatable {
       id: id ?? this.id,
       title: title ?? this.title,
       notes: notes ?? this.notes,
-      aiPrompt: aiPrompt?? this.aiPrompt,
+      aiPrompt: aiPrompt ?? this.aiPrompt,
       aiReflection: aiReflection ?? this.aiReflection,
       mood: mood ?? this.mood,
       photo: photo ?? this.photo,
@@ -62,7 +62,7 @@ class JournalDetailsModel extends Equatable {
       id: data['id']?.toString() ?? "",
       title: data['title'] ?? "",
       notes: data['notes'] ?? "",
-      aiPrompt: data['ai_prompt']??"",
+      aiPrompt: data['ai_prompt'] ?? "",
       aiReflection: data['ai_reflection'] ?? "",
       mood: data['mood'] ?? "",
       photo: data['photo'] ?? "",

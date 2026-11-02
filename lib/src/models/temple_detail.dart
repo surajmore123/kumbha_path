@@ -29,18 +29,18 @@ class TempleDetailsModel extends Equatable {
 
   @override
   List<Object?> get props => [
-        templeId,
-        name,
-        description,
-        latitude,
-        longitude,
-        imageUrl,
-        city,
-        state,
-        crowdLevel,
-        crowdMessage,
-        createdAt,
-      ];
+    templeId,
+    name,
+    description,
+    latitude,
+    longitude,
+    imageUrl,
+    city,
+    state,
+    crowdLevel,
+    crowdMessage,
+    createdAt,
+  ];
 
   TempleDetailsModel copyWith({
     String? templeId,

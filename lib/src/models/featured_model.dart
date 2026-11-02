@@ -35,21 +35,21 @@ class EventDetailsModel extends Equatable {
 
   @override
   List<Object?> get props => [
-        eventId,
-        eventName,
-        shortDescription,
-        description,
-        eventCategory,
-        eventSubtype,
-        eventDate,
-        startTime,
-        endTime,
-        isAllDay,
-        locationType,
-        locationName,
-        priorityLevel,
-        expectedCrowdLevel,
-      ];
+    eventId,
+    eventName,
+    shortDescription,
+    description,
+    eventCategory,
+    eventSubtype,
+    eventDate,
+    startTime,
+    endTime,
+    isAllDay,
+    locationType,
+    locationName,
+    priorityLevel,
+    expectedCrowdLevel,
+  ];
 
   EventDetailsModel copyWith({
     String? eventId,

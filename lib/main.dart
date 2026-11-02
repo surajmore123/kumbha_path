@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -5,24 +7,43 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:kumbha_path/app_router.dart';
+import 'package:kumbha_path/src/modules/family/invite_links.dart';
+import 'package:kumbha_path/src/modules/family/offline/contact_sync.dart';
+import 'package:kumbha_path/src/modules/lostfound/data/lf_drafts.dart';
 import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_bloc.dart';
 import 'package:kumbha_path/src/bloc/main_bloc/app_bloc.dart';
 import 'package:kumbha_path/src/bloc/user_bloc/user_bloc.dart';
 
 import 'package:kumbha_path/src/bloc/webhook_bloc/webhook_bloc.dart';
 import 'package:kumbha_path/src/components/navigation/app_navigation.dart';
-import 'package:kumbha_path/src/constant/config.dart';
 import 'package:kumbha_path/src/constant/design_system/app_typography.dart';
 import 'package:kumbha_path/src/constant/language_helper.dart';
 import 'package:kumbha_path/src/constant/theme_provider.dart';
 import 'package:kumbha_path/src/services/fcm_service.dart';
 import 'package:kumbha_path/src/services/local_notification_service.dart';
+import 'package:kumbha_path/src/services/notification_router.dart';
 import 'package:provider/provider.dart';
 
+/// App in the background or closed: the system shows the push itself
+/// (the backend always sends a `notification` with an Android channel).
+/// Nothing else is needed here; it must stay a top-level function.
 @pragma('vm:entry-point')
 Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  print("📩 BACKGROUND PUSH RECEIVED: ${message.notification?.title}");
+}
+
+/// App open: FCM doesn't display notifications for a foreground app, so
+/// show it as a local notification (tapping it opens the right screen).
+Future<void> _showForegroundPush(RemoteMessage message) async {
+  final title = message.notification?.title ?? message.data['title'];
+  final body = message.notification?.body ?? message.data['body'];
+  if (title == null && body == null) return;
+  await NotificationService.show(
+    title: title ?? 'Kumbh Path',
+    body: body ?? '',
+    data: message.data,
+    channelId: message.notification?.android?.channelId,
+  );
 }
 
 void main() async {
@@ -35,10 +56,13 @@ void main() async {
   await Firebase.initializeApp();
   await dotenv.load(fileName: ".env");
 
-  // 🔹 Background handler
+  // Notification taps open screens through the app's navigator.
+  NotificationRouter.attach(MyApp.navigatorKey);
+
+  // 🔹 Background / closed: handler for data processing
   FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
 
-  // 🔹 Initialize local notifications
+  // 🔹 Channels, foreground display, taps on local notifications
   await NotificationService.init();
 
   // 🔹 Request notification permission
@@ -48,33 +72,29 @@ void main() async {
     sound: true,
   );
 
-  // 🔹 Initialize FCM token
+  // 🔹 Token: cache it, follow refreshes, and register it for the
+  // signed-in user (not only at login).
   await FcmService.init();
+  unawaited(FcmService.registerWithBackend());
 
-  // 🔹 Listen for token refresh
-  FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
-    print("🔁 FCM TOKEN REFRESHED: $newToken");
-    await userAuthentication.saveFcmToken(newToken);
-  });
+  // 🔹 App open
+  FirebaseMessaging.onMessage.listen(_showForegroundPush);
 
-  // 🔹 FOREGROUND PUSH HANDLER
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-    print("📩 FOREGROUND PUSH RECEIVED");
+  // 🔹 App in background, user tapped the notification
+  FirebaseMessaging.onMessageOpenedApp.listen(
+    (message) => NotificationRouter.open(message.data),
+  );
 
-    if (message.notification != null) {
-      await NotificationService.show(
-        title: message.notification!.title ?? "Crowd Alert",
-        body: message.notification!.body ?? "",
-        payload: message.data['zone_id'],
-      );
-    }
-  });
+  // 🔹 App was closed and started by tapping the notification
+  final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+  if (initialMessage != null) NotificationRouter.open(initialMessage.data);
 
-  // 🔹 When app opened from notification (background → foreground)
-  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-    print("📲 Notification opened app");
-    print("Payload: ${message.data}");
-  });
+  InviteLinkRouter.attach(MyApp.navigatorKey);
+  InviteLinkRouter.listen();
+
+  // Sends any emergency contact changes saved while offline.
+  FamilyContacts.service.start();
+  LostFoundDrafts.sender.start();
 
   runApp(
     EasyLocalization(

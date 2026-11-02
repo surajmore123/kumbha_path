@@ -9,6 +9,7 @@ export 'package:kumbha_path/src/constant/app_color.dart'
     show AppColors, AppColorTokens, AppPalette;
 export 'package:kumbha_path/src/constant/theme_provider.dart';
 
+export 'app_editorial.dart';
 export 'app_elevation.dart';
 export 'app_radius.dart';
 export 'app_spacing.dart';

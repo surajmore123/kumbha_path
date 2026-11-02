@@ -48,7 +48,6 @@ class AppDetailsBloc extends Bloc<AppDetailsEvent, AppDetailsState> {
 
     final result = await templeRepository.getTempleDetail(jsonData);
 
-    print('temple detail result $result');
 
     if (result != null && result['status'] == 'success') {
       emit(
@@ -81,7 +80,6 @@ class AppDetailsBloc extends Bloc<AppDetailsEvent, AppDetailsState> {
     };
 
     final result = await templeRepository.templeNavigate(jsonData);
-    print('temple navigate result $result');
     if (result != null && result['status'] == 'success') {
       emit(state.copyWith(status: AppDetailsStatus.success));
     } else {
@@ -211,7 +209,6 @@ class AppDetailsBloc extends Bloc<AppDetailsEvent, AppDetailsState> {
     };
 
     final result = await templeRepository.getZoneDetail(jsonData);
-    print('zone detail result $result');
     if (result != null && result['status'] == 'success') {
       emit(
         state.copyWith(
@@ -237,7 +234,6 @@ class AppDetailsBloc extends Bloc<AppDetailsEvent, AppDetailsState> {
     final token = await storage.read(key: 'access_token');
     Map<String, String> jsonData = {"access_token": token.toString()};
     final result = await templeRepository.getQuickAlerts(jsonData);
-    print('quick alerts result $result');
     if (result != null && result['status'] == 'success') {
       final List list = result['alerts'] as List;
       final List<AlertDetailsModel> alertList =
@@ -268,7 +264,6 @@ class AppDetailsBloc extends Bloc<AppDetailsEvent, AppDetailsState> {
     };
 
     final result = await templeRepository.getNotifications(jsonData);
-    print('notifications result $result');
     if (result != null && result['status'] == 'success') {
       final List list = result['notifications'] as List;
       final List<NotificationModel> notificationList =

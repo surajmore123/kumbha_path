@@ -1,13 +1,14 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kumbha_path/src/bloc/webhook_bloc/webhook_event.dart';
 import 'package:kumbha_path/src/bloc/webhook_bloc/webhook_state.dart';
 import 'package:kumbha_path/src/constant/api_constatnt.dart';
 import 'package:kumbha_path/src/constant/config.dart';
+import 'package:kumbha_path/src/constant/language_helper.dart';
 import 'package:kumbha_path/src/models/chat_messages.dart';
 import 'package:kumbha_path/src/models/chat_session.dart';
+import 'package:path/path.dart' as p;
 
 class WebhookBloc extends Bloc<WebhookEvent, WebhookState> {
   WebhookBloc() : super(WebhookState()) {
@@ -15,12 +16,13 @@ class WebhookBloc extends Bloc<WebhookEvent, WebhookState> {
     on<ChatBothistoryEvent>(_onGetChatHistory);
   }
 
-  String _cleanAiContent(dynamic rawContent) {
+  /// Normalises reply text while keeping paragraphs and list lines.
+  static String cleanAiContent(dynamic rawContent) {
     if (rawContent == null) return '';
 
     String contentStr = rawContent.toString().trim();
 
-    // case: {'output': '...'}
+    // case: {'output': '...'} (legacy n8n replies)
     if (contentStr.startsWith("{'output':")) {
       contentStr = contentStr.replaceFirst("{'output':", '');
       if (contentStr.endsWith('}')) {
@@ -29,14 +31,52 @@ class WebhookBloc extends Bloc<WebhookEvent, WebhookState> {
       contentStr = contentStr.replaceAll("'", '').trim();
     }
 
-    // remove both \n and \\n
-    contentStr = contentStr.replaceAll("\\n", ' ');
-    contentStr = contentStr.replaceAll('\n', ' ');
+    // Escaped newlines become real ones; runs of blank lines collapse.
+    contentStr = contentStr.replaceAll('\\n', '\n');
+    contentStr = contentStr.replaceAll(RegExp(r'[ \t]+'), ' ');
+    contentStr = contentStr.replaceAll(RegExp(r' *\n *'), '\n');
+    contentStr = contentStr.replaceAll(RegExp(r'\n{3,}'), '\n\n');
 
-    // collapse multiple spaces
-    contentStr = contentStr.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return contentStr.trim();
+  }
 
-    return contentStr;
+  static Map<String, dynamic>? _metadata(dynamic message) {
+    final value = message is Map ? message['metadata'] : null;
+    return value is Map<String, dynamic> ? value : null;
+  }
+
+  static ChatMessage _assistantMessage(dynamic message) {
+    final metadata = _metadata(message);
+    return ChatMessage.text(
+      text: cleanAiContent(message is Map ? message['content'] : null),
+      isGuru: true,
+      reply: ChatReplyData.fromMetadata(metadata),
+    );
+  }
+
+  ChatMessage _userMessage(ChatBotEvent event) {
+    final file = event.file;
+    return switch (event.type) {
+      ChatPayloadType.text => ChatMessage.text(
+        text: event.message ?? '',
+        isGuru: false,
+      ),
+      ChatPayloadType.image => ChatMessage.image(
+        path: file!.path,
+        isGuru: false,
+        caption: event.message,
+      ),
+      ChatPayloadType.audio => ChatMessage.audio(
+        path: file!.path,
+        isGuru: false,
+      ),
+      ChatPayloadType.document => ChatMessage.document(
+        path: file!.path,
+        fileName: p.basename(file.path),
+        isGuru: false,
+        caption: event.message,
+      ),
+    };
   }
 
   FutureOr<void> _onChatWithAiGuru(
@@ -44,17 +84,8 @@ class WebhookBloc extends Bloc<WebhookEvent, WebhookState> {
     Emitter<WebhookState> emit,
   ) async {
     // 1) Add user message immediately
-    late final ChatMessage userMessage;
-
-    if (event.type == ChatPayloadType.text) {
-      userMessage = ChatMessage.text(text: event.message ?? '', isGuru: false);
-    } else if (event.type == ChatPayloadType.image) {
-      userMessage = ChatMessage.image(path: event.file!.path, isGuru: false);
-    } else {
-      userMessage = ChatMessage.audio(path: event.file!.path, isGuru: false);
-    }
-
-    final updatedMessages = List<ChatMessage>.from(state.messages)
+    final userMessage = _userMessage(event);
+    var updatedMessages = List<ChatMessage>.from(state.messages)
       ..add(userMessage);
 
     emit(
@@ -68,33 +99,32 @@ class WebhookBloc extends Bloc<WebhookEvent, WebhookState> {
       return;
     }
 
+    final language = LanguageHelper.currentLang.value;
     dynamic result;
 
     if (event.type == ChatPayloadType.text) {
-      // TEXT: same as before
-      final jsonData = {
+      result = await appRepository.chatBot({
         "access_token": token.toString(),
         "message": event.message ?? '',
-      };
-
-      print('chat payload (text): $jsonData');
-      result = await appRepository.chatBot(jsonData);
+        "language": language,
+      });
     } else {
-      // MEDIA: send binary
+      // MEDIA: send binary, with an optional caption
       if (event.file == null) {
         emit(state.copyWith(status: WebhookStatus.failure));
         return;
       }
-
-      print('chat payload (media): ${event.type} -> ${event.file!.path}');
+      final caption = (event.message ?? '').trim();
       result = await appRepository.chatBotMedia(
         accessToken: token.toString(),
         file: event.file!,
         type: event.type,
+        fields: {
+          'language': language,
+          if (caption.isNotEmpty) 'message': caption,
+        },
       );
     }
-
-    print('result of chat: $result');
 
     if (result != null && result['status'] == 'success') {
       final data = result['data'];
@@ -104,19 +134,28 @@ class WebhookBloc extends Bloc<WebhookEvent, WebhookState> {
 
       final messages = data['messages'] as List;
 
+      // A voice message: show what the server heard.
+      final sentMessage = messages.firstWhere(
+        (m) => m['role'] == 'user',
+        orElse: () => null,
+      );
+      final transcript = ChatMessage.transcriptFromMetadata(
+        _metadata(sentMessage),
+      );
+      if (transcript != null && userMessage.type == ChatPayloadType.audio) {
+        updatedMessages = List<ChatMessage>.from(updatedMessages)
+          ..[updatedMessages.length - 1] = userMessage.withTranscript(
+            transcript,
+          );
+      }
+
       final assistantMessage = messages.lastWhere(
         (m) => m['role'] == 'assistant',
         orElse: () => {'content': ''},
       );
 
-      final rawContent = assistantMessage['content'];
-
-      String chatResponse = _cleanAiContent(rawContent);
-
-      print('AI Clean Response: $chatResponse');
-
       final newMessages = List<ChatMessage>.from(updatedMessages)
-        ..add(ChatMessage.text(text: chatResponse, isGuru: true));
+        ..add(_assistantMessage(assistantMessage));
 
       emit(
         state.copyWith(status: WebhookStatus.success, messages: newMessages),
@@ -125,8 +164,6 @@ class WebhookBloc extends Bloc<WebhookEvent, WebhookState> {
       emit(state.copyWith(status: WebhookStatus.failure));
     }
   }
-
-
 
   FutureOr<void> _onGetChatHistory(
     ChatBothistoryEvent event,
@@ -150,46 +187,91 @@ class WebhookBloc extends Bloc<WebhookEvent, WebhookState> {
 
     if (result != null && result['status'] == "success") {
       final session = ChatSessionModel.fromJson(result);
+      final rawMessages =
+          ((result['data'] ?? result)['messages'] as List?) ?? const [];
 
-      // ---------- CHANGED MAPPING STARTS HERE ----------
+      final historyMessages = <ChatMessage>[];
+      for (var i = 0; i < (session.messages ?? []).length; i++) {
+        final m = session.messages![i];
+        final raw = i < rawMessages.length ? rawMessages[i] : null;
+        final bool isGuru = m.role == 'assistant';
 
-      final historyMessages =
-          (session.messages ?? []).map((m) {
-            final bool isGuru = m.role == 'assistant';
+        final String? fileUrl = m.fileUrl; // from "file_url"
+        final String? contentType =
+            m.metadata?.contentType; // from "metadata.content_type"
 
-            // Adjust these property names to match your ChatMessageModel
-            final String? fileUrl = m.fileUrl; // from "file_url"
-            final String? contentType =
-                m.metadata?.contentType; // from "metadata.content_type"
+        // 1) MEDIA MESSAGE (image, audio or document)
+        if (fileUrl != null &&
+            fileUrl.isNotEmpty &&
+            contentType != null &&
+            contentType.isNotEmpty) {
+          // If backend returns "/media/...", prefix with ApiConst.baseUrl
+          final String fullUrl =
+              fileUrl.startsWith('http')
+                  ? fileUrl
+                  : '${ApiConst.baseUrl}$fileUrl';
 
-            // 1) MEDIA MESSAGE (image or audio)
-            if (fileUrl != null &&
-                fileUrl.isNotEmpty &&
-                contentType != null &&
-                contentType.isNotEmpty) {
-              // If backend returns "/media/...", prefix with ApiConst.baseUrl
-              final String fullUrl =
-                  fileUrl.startsWith('http')
-                      ? fileUrl
-                      : '${ApiConst.baseUrl}$fileUrl';
+          if (contentType.startsWith('image/')) {
+            historyMessages.add(
+              ChatMessage.image(
+                path: fullUrl,
+                isGuru: isGuru,
+                caption: m.content,
+              ),
+            );
+            continue;
+          }
 
-              if (contentType.startsWith('image/')) {
-                return ChatMessage.image(path: fullUrl, isGuru: isGuru);
-              }
+          if (contentType.startsWith('audio/')) {
+            historyMessages.add(
+              ChatMessage.audio(
+                path: fullUrl,
+                isGuru: isGuru,
+                transcript: ChatMessage.transcriptFromMetadata(_metadata(raw)),
+              ),
+            );
+            continue;
+          }
 
-              if (contentType.startsWith('audio/')) {
-                return ChatMessage.audio(path: fullUrl, isGuru: isGuru);
-              }
-            }
+          if (m.messageType == 'file') {
+            historyMessages.add(
+              ChatMessage.document(
+                path: fullUrl,
+                fileName: m.metadata?.originalName ?? p.basename(fileUrl),
+                isGuru: isGuru,
+                caption: m.content,
+              ),
+            );
+            continue;
+          }
+        }
 
-            // 2) TEXT MESSAGE (fallback)
-            final rawContent = m.content ?? '';
-            final text = isGuru ? _cleanAiContent(rawContent) : rawContent;
-
-            return ChatMessage.text(text: text, isGuru: isGuru);
-          }).toList();
-
-      // ---------- CHANGED MAPPING ENDS HERE ----------
+        // 2) TEXT MESSAGE (fallback)
+        if (isGuru) {
+          historyMessages.add(
+            raw != null
+                ? _assistantMessage(raw)
+                : ChatMessage.text(
+                  text: cleanAiContent(m.content),
+                  isGuru: true,
+                ),
+          );
+        } else if (m.messageType == 'file') {
+          // A file the server declined: show its name, there's no copy.
+          historyMessages.add(
+            ChatMessage.document(
+              path: '',
+              fileName: m.metadata?.originalName ?? 'file',
+              isGuru: false,
+              caption: m.content,
+            ),
+          );
+        } else {
+          historyMessages.add(
+            ChatMessage.text(text: m.content ?? '', isGuru: false),
+          );
+        }
+      }
 
       List<ChatMessage> updatedList;
 

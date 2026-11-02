@@ -19,8 +19,10 @@ class ApiConst {
   static final String apiRoot =
       dotenv.env['API_ROOT'] ?? '/api';
 
+  // Trimmed: stray spaces or characters pasted into .env make Google reject
+  // the key, which silently disables route previews.
   static final String googleMapsKey =
-      dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
+      (dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '').trim();
 
   static String get baseUrl => '$protocol://$host';
   static String get apiBase => '$baseUrl$apiRoot';

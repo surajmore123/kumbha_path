@@ -60,9 +60,26 @@ dependencies:
   easy_localization: ^3.0.8
   pinput: ^6.0.2
   record: ^6.2.0
+  file_picker: ^10.3.10
+  path: ^1.9.1
+  share_plus: ^10.1.4
+  sqflite_sqlcipher: ^3.4.1
+  connectivity_plus: ^6.1.5
+  sqflite_common: ^2.5.8
+  app_links: ^7.0.0
+  mobile_scanner: 7.0.1
+  qr_flutter: ^4.1.0
+  pdf: ^3.12.0
+  printing: ^5.14.3
+
+# pdf limits archive to below 4.1, and image 4.11 needs newer than that.
+dependency_overrides:
+  image: 4.5.4
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
 
   # The "flutter_lints" package below contains a set of recommended lints to
@@ -71,6 +88,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  sqflite_common_ffi: ^2.4.0+3
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -85,11 +103,20 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
+      - assets/app/
       - assets/icons/
       - assets/images/
       - assets/markers/
       - assets/translations/
       - .env
+
+  fonts:
+    - family: TiroHindi
+      fonts:
+        - asset: assets/fonts/TiroDevanagariHindi-Regular.ttf
+    - family: TiroMarathi
+      fonts:
+        - asset: assets/fonts/TiroDevanagariMarathi-Regular.ttf
     
   #   - images/a_dot_ham.jpeg
 

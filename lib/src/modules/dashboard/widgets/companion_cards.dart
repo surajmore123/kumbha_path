@@ -5,67 +5,6 @@ import 'package:kumbha_path/src/constant/design_system/design_system.dart';
 import 'package:kumbha_path/src/models/journal_list.dart';
 import 'package:kumbha_path/src/modules/dashboard/dashboard_formatters.dart';
 
-/// Entry point to the existing AI Guru chat (`/aichat`).
-class AiExplorerCard extends StatelessWidget {
-  const AiExplorerCard({super.key, required this.onOpen});
-
-  final VoidCallback onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colorScheme;
-    final semantic = context.semanticColors;
-    final text = context.textTheme;
-
-    return AppCard(
-      variant: AppCardVariant.filled,
-      color: colors.tertiaryContainer,
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      onTap: onOpen,
-      semanticLabel: 'dash_ai_title'.tr(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: AppSpacing.minTouchTarget,
-                height: AppSpacing.minTouchTarget,
-                decoration: BoxDecoration(
-                  color: semantic.gold,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.auto_awesome, color: semantic.onGold),
-              ),
-              AppSpacing.gapMd,
-              Expanded(
-                child: Text(
-                  'dash_ai_title'.tr(),
-                  style: text.titleLarge?.copyWith(
-                    color: colors.onTertiaryContainer,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          AppSpacing.gapMd,
-          Text(
-            'dash_ai_message'.tr(),
-            style: text.bodyMedium?.copyWith(color: colors.onTertiaryContainer),
-          ),
-          AppSpacing.gapLg,
-          AppButton(
-            label: 'dash_ai_action'.tr(),
-            leadingIcon: Icons.chat_bubble_outline_rounded,
-            expand: false,
-            onPressed: onOpen,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// Latest MyKumbh journal entry from `GetJournalEntry(page: 1)`, or an
 /// invitation to start one. Opens the existing journal screen.
 class JournalPreviewCard extends StatelessWidget {

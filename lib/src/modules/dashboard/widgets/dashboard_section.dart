@@ -77,6 +77,15 @@ class FeedBuilder extends StatelessWidget {
         };
         return AnimatedSwitcher(
           duration: const Duration(milliseconds: 200),
+          // The default layout centres a loosely sized child, which made
+          // short cards (e.g. the journal) narrower than the others. Pass
+          // the full width through instead.
+          layoutBuilder:
+              (current, previous) => Stack(
+                alignment: Alignment.topCenter,
+                fit: StackFit.passthrough,
+                children: [...previous, if (current != null) current],
+              ),
           child: child,
         );
       },

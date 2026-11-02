@@ -5,9 +5,11 @@
 /// ```
 library;
 
+export 'brand/app_logo.dart';
 export 'buttons/app_button.dart';
 export 'buttons/app_icon_button.dart';
 export 'cards/app_card.dart';
+export 'editorial/editorial.dart';
 export 'feedback/app_empty_state.dart';
 export 'feedback/app_error_view.dart';
 export 'feedback/app_loading.dart';

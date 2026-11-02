@@ -101,7 +101,7 @@ class JournalEntryModel extends Equatable {
       id: id ?? this.id,
       title: title ?? this.title,
       notes: notes ?? this.notes,
-      aiPrompt: aiPrompt?? this.aiPrompt,
+      aiPrompt: aiPrompt ?? this.aiPrompt,
       aiReflection: aiReflection ?? this.aiReflection,
       mood: mood ?? this.mood,
       photo: photo ?? this.photo,

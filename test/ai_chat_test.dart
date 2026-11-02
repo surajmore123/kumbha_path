@@ -50,6 +50,12 @@ class FakeChatBloc extends WebhookBloc {
           path: event.file!.path,
           isGuru: false,
         ),
+        ChatPayloadType.document => ChatMessage.document(
+          path: event.file!.path,
+          fileName: event.file!.path.split('/').last,
+          isGuru: false,
+          caption: event.message,
+        ),
       };
       final withUser = [...state.messages, user];
       _emit(state.copyWith(status: WebhookStatus.sending, messages: withUser));
@@ -339,10 +345,180 @@ void main() {
 
     testWidgets('photo option sheet offers camera and gallery', (tester) async {
       await pumpChat(tester);
-      await tester.tap(find.byTooltip('Add a photo'));
+      await tester.tap(find.byTooltip('Add a photo or document'));
       await settle(tester);
       expect(find.text('Take a photo'), findsOneWidget);
       expect(find.text('Choose from gallery'), findsOneWidget);
+      expect(find.text('Choose a document'), findsOneWidget);
+    });
+  });
+
+  group('rich replies', () {
+    testWidgets('formatted text, cards, transcripts and documents', (
+      tester,
+    ) async {
+      final reply = ChatReplyData.fromMetadata({
+        'status': 'degraded',
+        'warnings': ['events_unavailable'],
+        'temple_mode': 'matched',
+        'temples': [
+          {
+            'id': 't1',
+            'name': 'Trimbakeshwar Jyotirling Mandir',
+            'city': 'Nashik',
+            'crowd_level': 'HIGH',
+            'distance_km': 28.4,
+            'directions_url':
+                'https://www.google.com/maps/dir/?api=1&destination=19.9,73.5',
+            'map_url':
+                'https://www.google.com/maps/search/?api=1&query=19.9,73.5',
+          },
+        ],
+        'events': [
+          {
+            'id': 'e1',
+            'name': 'Second Amrit Snan',
+            'date': '2027-08-31',
+            'start_time': '04:00:00',
+            'location': 'Ramkund',
+          },
+        ],
+        'crowd': {
+          'zones': [
+            {
+              'name': 'Ramkund',
+              'status': 'MEDIUM',
+              'occupancy_percent': 55.0,
+              'calculated_at': '2026-02-18T16:45:00+00:00',
+              'stale': true,
+            },
+          ],
+          'incidents': [
+            {
+              'title': 'Heavy traffic near the ghat',
+              'zone': 'Ramkund',
+              'type': 'TRAFFIC',
+              'severity': 'HIGH',
+            },
+          ],
+          'freshness': {
+            'calculated_at': '2026-02-18T16:45:00+00:00',
+            'stale': true,
+          },
+        },
+        'citations': [
+          {
+            'type': 'knowledge',
+            'title': 'Ghat guide',
+            'verification_status': 'unverified',
+          },
+          {'type': 'document', 'name': 'notice.pdf', 'location': 'page 2'},
+        ],
+      });
+      final b =
+          FakeChatBloc()
+            ..pages = {
+              null: (
+                [
+                  ChatMessage.audio(
+                    path: 'https://example.invalid/a.m4a',
+                    isGuru: false,
+                    transcript: 'Where is Trimbakeshwar?',
+                  ),
+                  ChatMessage.text(
+                    text:
+                        '**Trimbakeshwar** is near Nashik.\n\n- Go early\n- Carry water\n\nOld link: https://www.google.com/maps/dir/?api=1',
+                    isGuru: true,
+                    reply: reply,
+                  ),
+                  ChatMessage.document(
+                    path: 'https://example.invalid/n.pdf',
+                    fileName: 'notice.pdf',
+                    isGuru: false,
+                    caption: 'Summarise this',
+                  ),
+                ],
+                false,
+                0,
+              ),
+            };
+      await pumpChat(
+        tester,
+        bloc: b,
+        sessionId: 'S1',
+        size: const Size(420, 2600),
+      );
+
+      // Text: formatting applied, no raw markdown or URL.
+      expect(find.textContaining('**'), findsNothing);
+      expect(find.textContaining('https://'), findsNothing);
+      expect(find.textContaining('Go early'), findsOneWidget);
+
+      // Temple card.
+      expect(find.text('Trimbakeshwar Jyotirling Mandir'), findsOneWidget);
+      expect(find.text('Directions'), findsOneWidget);
+      expect(find.text('Details'), findsOneWidget);
+      expect(find.text('Nashik · 28 km away'), findsOneWidget);
+      expect(find.textContaining('Advisory:'), findsOneWidget);
+
+      // Event card.
+      expect(find.text('Upcoming events'), findsOneWidget);
+      expect(find.text('Second Amrit Snan'), findsOneWidget);
+      expect(find.text('See all events'), findsOneWidget);
+
+      // Crowd card with its age, and alerts.
+      expect(find.text('Crowd levels'), findsOneWidget);
+      expect(find.textContaining('May be outdated'), findsOneWidget);
+      expect(find.text('Heavy traffic near the ghat'), findsOneWidget);
+
+      // Sources and the incomplete-data note.
+      expect(find.text('Ghat guide (unverified)'), findsOneWidget);
+      expect(find.text('notice.pdf · page 2'), findsOneWidget);
+      expect(find.textContaining('may be incomplete'), findsOneWidget);
+
+      // User media.
+      expect(find.text('“Where is Trimbakeshwar?”'), findsOneWidget);
+      expect(find.text('notice.pdf'), findsOneWidget);
+      expect(find.text('Summarise this'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('more than three temples collapse behind "Show more"', (
+      tester,
+    ) async {
+      final reply = ChatReplyData.fromMetadata({
+        'temple_mode': 'list',
+        'temples': [
+          for (var i = 1; i <= 5; i++) {'id': 't$i', 'name': 'Temple $i'},
+        ],
+      });
+      final b =
+          FakeChatBloc()
+            ..pages = {
+              null: (
+                [
+                  ChatMessage.text(
+                    text: 'Here are some temples.',
+                    isGuru: true,
+                    reply: reply,
+                  ),
+                ],
+                false,
+                0,
+              ),
+            };
+      await pumpChat(
+        tester,
+        bloc: b,
+        sessionId: 'S1',
+        size: const Size(420, 2600),
+      );
+      expect(find.text('Temples you can visit'), findsOneWidget);
+      expect(find.text('Temple 4'), findsNothing);
+      await tester.tap(find.text('Show 2 more'));
+      await settle(tester);
+      expect(find.text('Temple 5'), findsOneWidget);
+      expect(find.text('Show less'), findsOneWidget);
     });
   });
 

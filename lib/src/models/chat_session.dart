@@ -35,9 +35,11 @@ class ChatSessionModel extends Equatable {
 
     return ChatSessionModel(
       sessionId: data['session_id'] ?? '',
-      messages: (data['messages'] as List<dynamic>?)
-        ?.map((e) => ChatMessageModel.fromJson(e))
-        .toList() ?? [],
+      messages:
+          (data['messages'] as List<dynamic>?)
+              ?.map((e) => ChatMessageModel.fromJson(e))
+              .toList() ??
+          [],
 
       hasMore: data['has_more'] ?? false,
       nextCursor: data['next_cursor'] ?? 0,

@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:kumbha_path/src/bloc/user_bloc/user_bloc.dart';
+import 'package:kumbha_path/src/services/notification_preferences.dart';
 import 'package:kumbha_path/src/bloc/user_bloc/user_event.dart';
 import 'package:kumbha_path/src/bloc/user_bloc/user_state.dart';
 import 'package:kumbha_path/src/components/components.dart';
@@ -168,6 +169,8 @@ Future<Harness> pumpSettings(
                                 },
                                 deleteToken: () async => h.tokenDeletes++,
                                 pickImage: (_) async => h.photo,
+                                notificationPreferences:
+                                    const _AllOnPreferences(),
                               ),
                         ),
                       ],
@@ -214,22 +217,29 @@ BuildContext ctx(WidgetTester tester) => tester.element(find.byType(Setting));
 void main() {
   tearDown(() => LanguageHelper.changeLanguage('en'));
 
-  testWidgets('only working controls: no fake notification toggles', (
-    tester,
-  ) async {
-    await pumpSettings(tester);
-    for (final t in [
-      'Profile',
-      'Appearance',
-      'Language',
-      'Notifications',
-      'Account',
-    ]) {
-      await scrollTo(tester, find.text(t));
-    }
-    expect(find.byType(Switch), findsNothing);
-    expect(find.text('Real-time alerts'), findsNothing);
-  });
+  testWidgets(
+    'only working controls: switches are the saved notification types',
+    (tester) async {
+      await pumpSettings(tester);
+      for (final t in [
+        'Profile',
+        'Appearance',
+        'Language',
+        'Notifications',
+        'Notification types',
+        'Account',
+      ]) {
+        await scrollTo(tester, find.text(t));
+      }
+      // One switch per server-backed category (saving is covered in
+      // notification_preferences_test.dart); no unbacked toggles.
+      expect(
+        find.byType(Switch),
+        findsNWidgets(NotificationCategory.values.length),
+      );
+      expect(find.text('Real-time alerts'), findsNothing);
+    },
+  );
 
   group('appearance', () {
     testWidgets('theme: shows current, applies instantly, persists', (
@@ -485,4 +495,23 @@ void main() {
       }
     }
   });
+}
+
+/// Server notification choices for the Settings tests: all on, saves succeed.
+class _AllOnPreferences extends NotificationPreferencesApi {
+  const _AllOnPreferences();
+
+  @override
+  Future<Map<NotificationCategory, bool>?> load() async => {
+    for (final c in NotificationCategory.values) c: true,
+  };
+
+  @override
+  Future<Map<NotificationCategory, bool>?> update(
+    NotificationCategory category,
+    bool enabled,
+  ) async => {
+    for (final c in NotificationCategory.values)
+      c: c == category ? enabled : true,
+  };
 }

@@ -14,6 +14,7 @@ import 'package:kumbha_path/src/constant/design_system/design_system.dart';
 import 'package:kumbha_path/src/models/chat_messages.dart';
 import 'package:kumbha_path/src/modules/ai_chat/widgets/chat_parts.dart';
 import 'package:kumbha_path/src/modules/ai_chat/widgets/mantra_mandala_background.dart';
+import 'package:kumbha_path/src/modules/ai_chat/widgets/reply_cards.dart';
 
 /// `/aichat`: conversation with AI Guru through the existing [WebhookBloc]
 /// (`api/chat/chat-send/` and `api/chat/chat-history/`).
@@ -372,6 +373,30 @@ class _ConversationList extends StatelessWidget {
                   ? null
                   : () => onAskAgain(_questionBefore(index)!),
         ),
+      ChatPayloadType.text when m.isGuru && !m.reply.isEmpty => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ChatBubble(
+            isGuru: true,
+            text: m.text ?? '',
+            showAvatar: !prevIsSameSender,
+          ),
+          AppSpacing.gapSm,
+          // Cards line up with the bubble, after the avatar column.
+          Padding(
+            padding: const EdgeInsetsDirectional.only(
+              start: 32 + AppSpacing.sm,
+            ),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: ReplyCards(reply: m.reply),
+              ),
+            ),
+          ),
+        ],
+      ),
       ChatPayloadType.text => ChatBubble(
         isGuru: m.isGuru,
         text: m.text ?? '',
@@ -380,8 +405,17 @@ class _ConversationList extends StatelessWidget {
       ChatPayloadType.image => ChatImageBubble(
         isGuru: m.isGuru,
         imagePath: m.mediaPath ?? '',
+        caption: m.text,
       ),
-      ChatPayloadType.audio => ChatAudioBubble(isGuru: m.isGuru),
+      ChatPayloadType.audio => ChatAudioBubble(
+        isGuru: m.isGuru,
+        transcript: m.transcript,
+      ),
+      ChatPayloadType.document => ChatDocumentBubble(
+        isGuru: m.isGuru,
+        fileName: m.fileName ?? '',
+        caption: m.text,
+      ),
     };
     return Padding(
       padding: EdgeInsets.only(

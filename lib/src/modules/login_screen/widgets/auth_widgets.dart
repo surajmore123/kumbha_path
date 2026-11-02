@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:kumbha_path/src/components/components.dart';
 import 'package:kumbha_path/src/constant/design_system/design_system.dart';
 
 /// How long an auth request may stay pending before the screen offers a
@@ -17,17 +18,14 @@ String maskPhoneNumber(String phone) {
       '${digits.substring(digits.length - 3)}';
 }
 
-/// The Kumbh Path lotus mark in a soft circle.
+/// The Kumbh Path logo in a soft circle.
 class AuthBrandMark extends StatelessWidget {
   const AuthBrandMark({super.key, this.size = 72});
 
   final double size;
 
-  static const String asset = 'assets/icons/login_screen.png';
-
   @override
   Widget build(BuildContext context) {
-    final dpr = MediaQuery.devicePixelRatioOf(context);
     return Semantics(
       image: true,
       label: 'app_title'.tr(),
@@ -39,13 +37,9 @@ class AuthBrandMark extends StatelessWidget {
           shape: BoxShape.circle,
           boxShadow: AppElevation.shadow(2, context.theme.brightness),
         ),
-        padding: EdgeInsets.all(size * 0.06),
-        child: Image.asset(
-          asset,
-          fit: BoxFit.contain,
-          cacheWidth: (size * dpr).round(),
-          excludeFromSemantics: true,
-        ),
+        // The square logo must sit inside the circle.
+        padding: EdgeInsets.all(size * 0.15),
+        child: AppLogo(size: size * 0.7),
       ),
     );
   }
