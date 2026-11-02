@@ -13,7 +13,7 @@ enum WebhookStatus {
   deleting,
   deleted,
 }
-enum ChatPayloadType { text, image, audio }
+enum ChatPayloadType { text, image, audio, document }
 
 
 class WebhookState extends Equatable {

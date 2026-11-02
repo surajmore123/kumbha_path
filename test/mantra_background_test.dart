@@ -3,19 +3,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kumbha_path/src/constant/design_system/design_system.dart';
 import 'package:kumbha_path/src/modules/ai_chat/widgets/mantra_mandala_background.dart';
 
-Widget _host({required bool reduceMotion, ThemeData? theme}) =>
-    MaterialApp(
-      theme: theme ?? AppTheme.light,
-      home: Builder(
-        builder:
-            (context) => MediaQuery(
-              data: MediaQuery.of(
-                context,
-              ).copyWith(disableAnimations: reduceMotion),
-              child: const Scaffold(body: MantraMandalaBackground()),
-            ),
-      ),
-    );
+Widget _host({required bool reduceMotion, ThemeData? theme}) => MaterialApp(
+  theme: theme ?? AppTheme.light,
+  home: Builder(
+    builder:
+        (context) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(disableAnimations: reduceMotion),
+          child: const Scaffold(body: MantraMandalaBackground()),
+        ),
+  ),
+);
 
 bool _ticking(WidgetTester tester) => tester.binding.hasScheduledFrame;
 

@@ -1,12 +1,10 @@
 import 'package:equatable/equatable.dart';
 
-
-
 class ZoneModel extends Equatable {
   final String? code;
   final String? name;
   final double? latitude;
-  final double? longitude;    
+  final double? longitude;
   final int? capacity;
   final int? totalPeople;
   final double? occupancyPercent;
@@ -25,15 +23,15 @@ class ZoneModel extends Equatable {
 
   @override
   List<Object?> get props => [
-        code,
-        name,
-        latitude,
-        longitude,
-        capacity,
-        totalPeople,
-        occupancyPercent,
-        status,
-      ];
+    code,
+    name,
+    latitude,
+    longitude,
+    capacity,
+    totalPeople,
+    occupancyPercent,
+    status,
+  ];
 
   ZoneModel copyWith({
     String? code,
@@ -65,8 +63,7 @@ class ZoneModel extends Equatable {
       longitude: double.tryParse(json['longitude']?.toString() ?? ''),
       capacity: json['capacity'],
       totalPeople: json['total_people'],
-      occupancyPercent:
-          (json['occupancy_percent'] as num?)?.toDouble(),
+      occupancyPercent: (json['occupancy_percent'] as num?)?.toDouble(),
       status: json['status'],
     );
   }

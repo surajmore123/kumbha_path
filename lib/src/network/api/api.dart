@@ -15,7 +15,6 @@ class Api {
   }) async {
     var headerData = _headers;
 
-    print('final headers $headerData');
 
     dynamic res = jsonEncode(parameters);
 
@@ -26,7 +25,6 @@ class Api {
       uri = Uri.http(_host, path!);
     }
 
-    print('url %%%%%%%%%$uri');
 
     final result = await http.post(uri, headers: headerData, body: res);
 
@@ -59,7 +57,6 @@ Future<dynamic> requestPostMultipart({
   } else {
     uri = Uri.http(_host, path);
   }
-  print('url (multipart) %%%%%%%%%$uri');
 
   final request = http.MultipartRequest('POST', uri);
   request.headers.addAll(headers);
@@ -84,7 +81,6 @@ Future<dynamic> requestPostMultipart({
 
   if (response.body.isNotEmpty) {
     final jsonObject = json.decode(response.body);
-    print('multipart response: $jsonObject');
     return jsonObject;
   } else {
     return {};
@@ -98,10 +94,8 @@ Future<dynamic> requestPostMultipart({
   }) async {
     bool chk = parameters.containsKey("access_token");
 
-    print('tokeeeeennnn $chk');
 
     var headerData = _headers;
-    print('final headers $headerData');
 
     dynamic res = jsonEncode(parameters);
     if (chk) {
@@ -114,7 +108,6 @@ Future<dynamic> requestPostMultipart({
     } else {
       uri = Uri.http(_host, path!);
     }
-    print('url %%%%%%%%%$uri');
 
     final result = await http.post(uri, headers: headerData, body: res);
     if (result.body.isNotEmpty) {
@@ -141,7 +134,6 @@ Future<dynamic> requestPostMultipart({
     } else {
       uri = Uri.http(_host, path, parameters);
     }
-    print('url %%%%%%%%%$uri');
 
     final result = await http.get(uri, headers: headersData);
 
@@ -170,7 +162,6 @@ Future<dynamic> requestPostMultipart({
       uri = Uri.http(_host, path!);
     }
 
-    print('url %%%%%%%%%$uri');
 
     final results = await http.patch(
       uri,
@@ -178,8 +169,6 @@ Future<dynamic> requestPostMultipart({
       body: jsonEncode(parameters),
     );
 
-    print("Status: ${results.statusCode}");
-    print("Body: ${results.body}");
 
     if (results.body.isNotEmpty) {
       final jsonObject = jsonDecode(results.body);
@@ -232,8 +221,6 @@ Future<dynamic> requestPostMultipart({
   var streamedResponse = await request.send();
   var response = await http.Response.fromStream(streamedResponse);
 
-  print("PATCH Upload Status: ${response.statusCode}");
-  print("PATCH Upload Body: ${response.body}");
 
   if (response.statusCode == 200) {
     return jsonDecode(response.body);
@@ -264,7 +251,6 @@ Future<dynamic> requestMultipartPost({
     uri = Uri.http(_host, path);
   }
 
-  print("url %%%%%%%%%$uri");
 
   var request = http.MultipartRequest("POST", uri);
 

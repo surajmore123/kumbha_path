@@ -4,18 +4,12 @@ class EventListModel extends Equatable {
   final int? count;
   final List<EventSummaryModel>? events;
 
-  const EventListModel({
-    this.count,
-    this.events,
-  });
+  const EventListModel({this.count, this.events});
 
   @override
   List<Object?> get props => [count, events];
 
-  EventListModel copyWith({
-    int? count,
-    List<EventSummaryModel>? events,
-  }) {
+  EventListModel copyWith({int? count, List<EventSummaryModel>? events}) {
     return EventListModel(
       count: count ?? this.count,
       events: events ?? this.events,
@@ -24,7 +18,7 @@ class EventListModel extends Equatable {
 
   factory EventListModel.fromJson(Map<String, dynamic> json) {
     final data = json['data'];
-    
+
     // Handle if data is a list directly or a map containing a list
     List<dynamic> list = [];
     if (data is List) {
@@ -39,10 +33,7 @@ class EventListModel extends Equatable {
     );
   }
 
-  static const empty = EventListModel(
-    count: 0,
-    events: [],
-  );
+  static const empty = EventListModel(count: 0, events: []);
 
   @override
   String toString() => '{count: $count, events: $events}';
@@ -83,21 +74,21 @@ class EventSummaryModel extends Equatable {
 
   @override
   List<Object?> get props => [
-        eventId,
-        eventName,
-        shortDescription,
-        description,
-        eventCategory,
-        eventSubtype,
-        eventDate,
-        startTime,
-        endTime,
-        isAllDay,
-        locationType,
-        locationName,
-        priorityLevel,
-        expectedCrowdLevel,
-      ];
+    eventId,
+    eventName,
+    shortDescription,
+    description,
+    eventCategory,
+    eventSubtype,
+    eventDate,
+    startTime,
+    endTime,
+    isAllDay,
+    locationType,
+    locationName,
+    priorityLevel,
+    expectedCrowdLevel,
+  ];
 
   EventSummaryModel copyWith({
     String? eventId,

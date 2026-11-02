@@ -6,6 +6,16 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:kumbha_path/src/modules/family/invite_links.dart';
+import 'package:kumbha_path/src/modules/family/offline/contact_sync.dart';
+import 'package:kumbha_path/src/modules/location/data/location_tracker.dart';
+import 'package:kumbha_path/src/modules/emergency/data/emergency_repository.dart';
+import 'package:kumbha_path/src/modules/reunion/data/reunion_repository.dart';
+import 'package:kumbha_path/src/modules/lostfound/data/lf_drafts.dart';
+import 'package:kumbha_path/src/modules/safety/data/safety_repository.dart';
+import 'package:kumbha_path/src/modules/setting/widgets/notification_preferences_card.dart';
+import 'package:kumbha_path/src/services/fcm_service.dart';
+import 'package:kumbha_path/src/services/notification_preferences.dart';
 import 'package:kumbha_path/main_layout.dart';
 import 'package:kumbha_path/src/bloc/user_bloc/user_bloc.dart';
 import 'package:kumbha_path/src/bloc/user_bloc/user_event.dart';
@@ -40,7 +50,8 @@ Future<bool?> _defaultNotificationStatus() async {
 /// * Language: easy_localization via [LanguageHelper.setAppLanguage]
 ///   (saved), kept in sync with [LanguageHelper].
 /// * Notifications: the OS permission state, with a shortcut to system
-///   settings. Event reminders stay per event.
+///   settings, and an on/off switch per notification type (saved on the
+///   server). Reminders are also turned on per event.
 /// * Profile and logout: the existing [UserBloc] events and token removal.
 class Setting extends StatefulWidget {
   const Setting({
@@ -49,6 +60,7 @@ class Setting extends StatefulWidget {
     this.openSystemSettings,
     this.deleteToken,
     this.pickImage,
+    this.notificationPreferences = const NotificationPreferencesApi(),
   });
 
   /// Injected in tests.
@@ -56,6 +68,9 @@ class Setting extends StatefulWidget {
   final Future<bool> Function()? openSystemSettings;
   final Future<void> Function()? deleteToken;
   final Future<XFile?> Function(ImageSource source)? pickImage;
+
+  /// Per-type notification switches (server-side); injected in tests.
+  final NotificationPreferencesApi notificationPreferences;
 
   @override
   State<Setting> createState() => _Setting();
@@ -268,10 +283,25 @@ class _Setting extends State<Setting> with WidgetsBindingObserver {
     );
     if (confirmed != true || !mounted) return;
     // Same session removal as before.
-    await (widget.deleteToken ?? () => storage.delete(key: 'access_token'))();
+    await (widget.deleteToken ?? _signOut)();
     if (!mounted) return;
     // Clear the stack so Back can't return into the signed-in app.
     Navigator.pushNamedAndRemoveUntil(context, '/loginScreen', (_) => false);
+  }
+
+  /// Same session removal as before, plus this device stops receiving the
+  /// signed-out user's notifications.
+  Future<void> _signOut() async {
+    // First: stopping needs the token, and sharing must not outlive sign-in.
+    await LocationSharing.tracker.signOut();
+    await ReunionServices.wipe();
+    await EmergencyServices.unsent.clear();
+    await storage.delete(key: 'access_token');
+    await FamilyContacts.service.wipe();
+    await InviteLinkRouter.clearPending();
+    await SafetyServices.cache.clear();
+    await LostFoundDrafts.sender.wipe();
+    await FcmService.resetForLogout();
   }
 
   void _snack(String message) {
@@ -332,7 +362,15 @@ class _Setting extends State<Setting> with WidgetsBindingObserver {
                               LanguageHelper.setAppLanguage(context, code),
                     ),
                   ]),
-                  _section('set_notifications'.tr(), [_notificationsCard()]),
+                  _section('set_notifications'.tr(), [
+                    _notificationsCard(),
+                    AppSpacing.gapMd,
+                    NotificationPreferencesCard(
+                      api: widget.notificationPreferences,
+                      systemAllowed:
+                          _notificationsChecked ? _notificationsAllowed : null,
+                    ),
+                  ]),
                   _section('set_account'.tr(), [
                     AppButton.outlined(
                       label: 'set_logout'.tr(),

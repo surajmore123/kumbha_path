@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:easy_localization/easy_localization.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
@@ -8,12 +9,14 @@ import 'package:kumbha_path/src/bloc/webhook_bloc/webhook_bloc.dart';
 import 'package:kumbha_path/src/bloc/webhook_bloc/webhook_event.dart';
 import 'package:kumbha_path/src/components/buttons/app_icon_button.dart';
 import 'package:kumbha_path/src/constant/design_system/design_system.dart';
+import 'package:kumbha_path/src/constant/document_type.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
-/// Message composer: text, a photo (camera or gallery) and a voice note,
-/// the three inputs the chat API accepts. Each is sent as the existing
-/// `ChatBotEvent.text / .image / .audio`.
+/// Message composer: text, a photo (camera or gallery), a document and a
+/// voice note. Each is sent as a `ChatBotEvent`; text typed while a photo
+/// or document is attached goes with it as its caption.
 class ChatInputBar extends StatefulWidget {
   final VoidCallback? onMessageSent;
 
@@ -25,11 +28,16 @@ class ChatInputBar extends StatefulWidget {
   /// [WebhookBloc], as before.
   final ValueChanged<ChatBotEvent>? onSubmit;
 
+  /// Picks a document and returns its path. Defaults to the system file
+  /// picker limited to the types the chat accepts; injected in tests.
+  final Future<String?> Function()? pickDocument;
+
   const ChatInputBar({
     super.key,
     this.onMessageSent,
     this.isSending = false,
     this.onSubmit,
+    this.pickDocument,
   });
 
   @override
@@ -40,6 +48,7 @@ class ChatInputBarState extends State<ChatInputBar> {
   final TextEditingController _controller = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
   XFile? _selectedImage;
+  String? _selectedDocument;
 
   /// Created on first use so opening the chat touches no audio plugin.
   AudioRecorder? _recorder;
@@ -50,7 +59,7 @@ class ChatInputBarState extends State<ChatInputBar> {
   bool get _canSend =>
       !widget.isSending &&
       !_isRecording &&
-      (_hasText || _selectedImage != null);
+      (_hasText || _selectedImage != null || _selectedDocument != null);
 
   @override
   void dispose() {
@@ -79,16 +88,44 @@ class ChatInputBarState extends State<ChatInputBar> {
 
   void _onPressSend() {
     if (!_canSend) return;
-    final image = _selectedImage;
-    if (image != null) {
-      _submit(ChatBotEvent.image(file: File(image.path)));
-      setState(() => _selectedImage = null);
-      return;
-    }
     final text = _controller.text.trim();
-    _submit(ChatBotEvent.text(message: text));
+    final caption = text.isEmpty ? null : text;
+    final image = _selectedImage;
+    final document = _selectedDocument;
+    if (image != null) {
+      _submit(ChatBotEvent.image(file: File(image.path), message: caption));
+    } else if (document != null) {
+      _submit(ChatBotEvent.document(file: File(document), message: caption));
+    } else {
+      _submit(ChatBotEvent.text(message: text));
+    }
     _controller.clear();
-    setState(() {});
+    setState(() {
+      _selectedImage = null;
+      _selectedDocument = null;
+    });
+  }
+
+  Future<String?> _defaultPickDocument() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: kChatDocumentExtensions,
+    );
+    return result?.files.single.path;
+  }
+
+  Future<void> _pickDocument() async {
+    try {
+      final path = await (widget.pickDocument ?? _defaultPickDocument)();
+      if (path != null && mounted) {
+        setState(() {
+          _selectedDocument = path;
+          _selectedImage = null;
+        });
+      }
+    } catch (_) {
+      if (mounted) _snack('ai_file_failed'.tr());
+    }
   }
 
   Future<void> _showImageOptions() async {
@@ -116,6 +153,15 @@ class ChatInputBarState extends State<ChatInputBar> {
                     _pickImage(ImageSource.gallery);
                   },
                 ),
+                ListTile(
+                  leading: const Icon(Icons.description_outlined),
+                  title: Text('ai_document_pick'.tr()),
+                  subtitle: Text('ai_document_types'.tr()),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _pickDocument();
+                  },
+                ),
                 AppSpacing.gapSm,
               ],
             ),
@@ -126,7 +172,12 @@ class ChatInputBarState extends State<ChatInputBar> {
   Future<void> _pickImage(ImageSource source) async {
     try {
       final image = await _imagePicker.pickImage(source: source);
-      if (image != null && mounted) setState(() => _selectedImage = image);
+      if (image != null && mounted) {
+        setState(() {
+          _selectedImage = image;
+          _selectedDocument = null;
+        });
+      }
     } catch (_) {
       if (mounted) _snack('ai_image_failed'.tr());
     }
@@ -239,6 +290,22 @@ class ChatInputBarState extends State<ChatInputBar> {
               ),
             ),
           ),
+        if (_selectedDocument != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: InputChip(
+                avatar: const Icon(Icons.description_outlined, size: 18),
+                label: Text(
+                  p.basename(_selectedDocument!),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                deleteButtonTooltipMessage: 'ai_remove_file'.tr(),
+                onDeleted: () => setState(() => _selectedDocument = null),
+              ),
+            ),
+          ),
         if (_isRecording)
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -310,7 +377,9 @@ class ChatInputBarState extends State<ChatInputBar> {
                   ),
                 ),
               ),
-              if (!_hasText && _selectedImage == null)
+              if (!_hasText &&
+                  _selectedImage == null &&
+                  _selectedDocument == null)
                 AppIconButton(
                   icon:
                       _isRecording

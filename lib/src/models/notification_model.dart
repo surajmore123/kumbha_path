@@ -21,14 +21,14 @@ class NotificationModel extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        title,
-        body,
-        type,
-        severity,
-        zoneName,
-        createdAt,
-      ];
+    id,
+    title,
+    body,
+    type,
+    severity,
+    zoneName,
+    createdAt,
+  ];
 
   NotificationModel copyWith({
     int? id,

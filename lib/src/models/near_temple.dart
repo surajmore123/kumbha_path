@@ -16,13 +16,7 @@ class NearbyTemplesModel extends Equatable {
   });
 
   @override
-  List<Object?> get props => [
-        radiusKm,
-        count,
-        temples,
-        hasMore,
-        nextCursor,
-      ];
+  List<Object?> get props => [radiusKm, count, temples, hasMore, nextCursor];
 
   NearbyTemplesModel copyWith({
     double? radiusKm,
@@ -46,7 +40,8 @@ class NearbyTemplesModel extends Equatable {
     return NearbyTemplesModel(
       radiusKm: (data['radius_km'] as num?)?.toDouble(),
       count: data['count'] ?? 0,
-      temples: (data['temples'] as List<dynamic>?)
+      temples:
+          (data['temples'] as List<dynamic>?)
               ?.map((e) => TempleModel.fromJson(e))
               .toList() ??
           [],
@@ -67,9 +62,6 @@ class NearbyTemplesModel extends Equatable {
   String toString() =>
       '{radiusKm: $radiusKm, count: $count, temples: $temples, hasMore: $hasMore, nextCursor: $nextCursor}';
 }
-
-
-
 
 class TempleModel extends Equatable {
   final String? templeId;
@@ -98,17 +90,17 @@ class TempleModel extends Equatable {
 
   @override
   List<Object?> get props => [
-        templeId,
-        name,
-        description,
-        latitude,
-        longitude,
-        imageUrl,
-        city,
-        crowdLevel,
-        crowdMessage,
-        distanceKm,
-      ];
+    templeId,
+    name,
+    description,
+    latitude,
+    longitude,
+    imageUrl,
+    city,
+    crowdLevel,
+    crowdMessage,
+    distanceKm,
+  ];
 
   TempleModel copyWith({
     String? templeId,

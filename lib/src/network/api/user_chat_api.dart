@@ -4,59 +4,58 @@ import 'package:kumbha_path/src/bloc/webhook_bloc/webhook_state.dart';
 import 'package:kumbha_path/src/constant/document_type.dart';
 import 'package:kumbha_path/src/network/api/api.dart';
 
+// Chat payloads and replies are not logged: they can hold personal
+// questions, photos and documents.
 class UserChatApi extends Api {
   Future<dynamic> chatBot(jsonData) async {
     try {
-      final response = await requestPost(
+      return await requestPost(
         path: 'api/chat/chat-send/',
         parameters: jsonData,
       );
-      print("chat response ai $response");
-      return response;
-    } catch (e, _) {
-      print(e);
-      print('error');
+    } catch (_) {
+      return null;
     }
   }
 
+  /// [fields] are optional form fields sent with the file, e.g. a
+  /// `message` caption and the app `language`.
   Future<dynamic> chatBotMedia({
     required String accessToken,
     required File file,
     required ChatPayloadType type,
+    Map<String, String> fields = const {},
   }) async {
     try {
       final mime = detectMimeType(file, type);
 
-      final response = await requestPostMultipart(
+      return await requestPostMultipart(
         path: 'api/chat/chat-send/',
         file: file,
-        contentType: mime, 
+        contentType: mime,
         fields: {
-     
-          'message_type': type == ChatPayloadType.image ? 'image' : 'audio',
-      
+          'message_type': switch (type) {
+            ChatPayloadType.image => 'image',
+            ChatPayloadType.audio => 'audio',
+            _ => 'file',
+          },
+          ...fields,
         },
         accessToken: accessToken,
       );
-      print("chat media response ai $response");
-      return response;
-    } catch (e, _) {
-      print(e);
-      print('error media');
+    } catch (_) {
+      return null;
     }
   }
 
   Future<dynamic> chatHistory(Map<String, String> jsonData) async {
     try {
-      final response = await requestGet(
+      return await requestGet(
         path: "api/chat/chat-history/",
         parameters: jsonData,
       );
-      print('chat history response ai $response');
-      return response;
-    } catch (e, _) {
-      print(e);
-      print('error');
+    } catch (_) {
+      return null;
     }
   }
 }

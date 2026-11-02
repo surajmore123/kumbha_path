@@ -207,7 +207,11 @@ class _MandalaCache {
     final om = TextPainter(
       text: TextSpan(
         text: 'ॐ',
-        style: TextStyle(fontSize: innerRadius * 1.3, height: 1, color: style.om),
+        style: TextStyle(
+          fontSize: innerRadius * 1.3,
+          height: 1,
+          color: style.om,
+        ),
       ),
       textDirection: style.textDirection,
       textScaler: TextScaler.noScaling,

@@ -3,6 +3,11 @@ import 'dart:math' as math;
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kumbha_path/src/modules/emergency/widgets/sos_parts.dart';
+import 'package:kumbha_path/src/modules/notification_centre/notification_centre_screen.dart';
+import 'package:kumbha_path/src/modules/operations/ops_home_screen.dart';
+import 'package:kumbha_path/src/modules/reunion/reunion_map_screen.dart';
+import 'package:kumbha_path/src/modules/location/data/location_tracker.dart';
 import 'package:kumbha_path/main_layout.dart';
 import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_bloc.dart';
 import 'package:kumbha_path/src/bloc/app_details_bloc/app_details_event.dart';
@@ -19,11 +24,18 @@ import 'package:kumbha_path/src/modules/dashboard/dashboard_controller.dart';
 import 'package:kumbha_path/src/modules/dashboard/widgets/companion_cards.dart';
 import 'package:kumbha_path/src/modules/dashboard/widgets/crowd_summary.dart';
 import 'package:kumbha_path/src/modules/dashboard/widgets/dashboard_section.dart';
+import 'package:kumbha_path/src/modules/dashboard/widgets/explore_hub.dart';
 import 'package:kumbha_path/src/modules/dashboard/widgets/featured_event_card.dart';
 import 'package:kumbha_path/src/modules/dashboard/widgets/nearby_temples_section.dart';
-import 'package:kumbha_path/src/modules/dashboard/widgets/quick_actions.dart';
 import 'package:kumbha_path/src/modules/dashboard/widgets/upcoming_events_section.dart';
 import 'package:kumbha_path/src/modules/dashboard/widgets/welcome_hero.dart';
+import 'package:kumbha_path/src/modules/family/invite_links.dart';
+import 'package:kumbha_path/src/modules/family/widgets/family_dashboard_entry.dart';
+import 'package:kumbha_path/src/modules/journey/models/journey_models.dart';
+import 'package:kumbha_path/src/modules/lostfound/lostfound_home_screen.dart';
+import 'package:kumbha_path/src/modules/journey/widgets/journey_dashboard_panel.dart';
+import 'package:kumbha_path/src/modules/patrika/widgets/discover_panel.dart';
+import 'package:kumbha_path/src/services/notification_router.dart';
 import 'package:kumbha_path/src/modules/temple_explorer/temple_detail_screen.dart'
     show TempleDetailArgs;
 
@@ -58,6 +70,19 @@ class _DashboardState extends State<Dashboard> {
         DashboardController(templesBloc: context.read<AppBloc>());
     _controller.start();
 
+    // A notification tapped while the app was starting opens now.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationRouter.consumePending();
+      InviteLinkRouter.consumePending();
+      // Carries on a session this person already agreed to.
+      final tracker = LocationSharing.tracker
+        ..notificationTitle = 'loc_notification_title'.tr()
+        ..notificationText = 'loc_notification_text'.tr();
+      tracker.start();
+      // Operational accounts go to their own dashboard. Pilgrims see no change.
+      openOperationsIfAllowed(Navigator.of(context));
+    });
+
     // Greeting name: reuse a profile already loaded (e.g. by Settings),
     // otherwise make the same request Settings makes.
     final user = context.read<UserBloc>();
@@ -74,6 +99,13 @@ class _DashboardState extends State<Dashboard> {
   }
 
   // ---- Navigation (existing routes and flows) ----
+
+  /// New plan from the dashboard: the form, then the saved plan.
+  Future<void> _createJourney() async {
+    final created = await Navigator.of(context).pushNamed('/journeyForm');
+    if (!mounted || created is! JourneyPlan) return;
+    _push('/journeyDetail', arguments: created.id);
+  }
 
   void _push(String route, {Object? arguments}) =>
       Navigator.pushNamed(context, route, arguments: arguments);
@@ -139,11 +171,7 @@ class _DashboardState extends State<Dashboard> {
       appBar: AppAppBar(
         titleWidget: const _BrandTitle(),
         actions: [
-          AppIconButton(
-            icon: Icons.notifications_none_rounded,
-            tooltip: 'dash_notifications'.tr(),
-            onPressed: () => _push('/notifications'),
-          ),
+          const NotificationBell(),
           const LanguageIconButton(),
           AppSpacing.gapXs,
         ],
@@ -175,9 +203,12 @@ class _DashboardState extends State<Dashboard> {
   List<Widget> _sections(String locale) {
     final c = _controller;
     return [
+      // Greeting with the AI Guru bar.
       BlocSelector<UserBloc, UserState, String?>(
         selector: (state) => state.profileData?.fullName,
-        builder: (context, name) => WelcomeHero(fullName: name),
+        builder:
+            (context, name) =>
+                WelcomeHero(fullName: name, onAsk: () => _push('/aichat')),
       ),
 
       // Real alerts only; nothing is rendered while loading, on failure or
@@ -196,6 +227,156 @@ class _DashboardState extends State<Dashboard> {
             ),
           );
         },
+      ),
+
+      // Journey planning, crowd, temples, events and journal share one panel: every feature
+      // is visible as a tab, but only one preview takes space. (Updates
+      // are the bell in the app bar.)
+      AppSpacing.gapSm,
+      // Side by side, so safety tools add one line to the first screen.
+      IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: FamilyDashboardEntry(
+                onOpen: () => Navigator.of(context).pushNamed('/family'),
+              ),
+            ),
+            AppSpacing.gapSm,
+            Expanded(
+              child: LostFoundDashboardEntry(onOpen: () => _push('/lostFound')),
+            ),
+          ],
+        ),
+      ),
+      AppSpacing.gapXs,
+      IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: ReunionDashboardEntry(
+                onOpen: () => _push('/reunionMap'),
+              ),
+            ),
+            AppSpacing.gapSm,
+            Expanded(child: SosDashboardEntry(onOpen: () => _push('/sos'))),
+          ],
+        ),
+      ),
+      AppSpacing.gapSm,
+      // Plan sits first; Crowd (live, safety-related) stays selected.
+      ExploreHub(
+        initialIndex: 1,
+        tabs: [
+          ExploreTab(
+            icon: Icons.route_outlined,
+            labelKey: 'dash_tab_plan',
+            builder:
+                (context) => JourneyDashboardPanel(
+                  onOpenList: () => _push('/journeys'),
+                  onOpen: (id) => _push('/journeyDetail', arguments: id),
+                  onCreate: _createJourney,
+                ),
+          ),
+          ExploreTab(
+            icon: Icons.groups_outlined,
+            labelKey: 'dash_tab_crowd',
+            builder:
+                (context) => FeedBuilder(
+                  feed: c.crowd,
+                  loading: const SkeletonBlock(height: 200),
+                  builder:
+                      (context) => CrowdSummaryCard(
+                        zones: c.crowd.bloc.state.zoneModel,
+                        checkedAt: c.crowd.lastUpdated,
+                        locale: locale,
+                        onOpenMap: () => _push('/liveCroud'),
+                      ),
+                ),
+          ),
+          ExploreTab(
+            icon: Icons.temple_hindu_outlined,
+            labelKey: 'dash_tab_temples',
+            actionLabelKey: 'dash_see_all',
+            onAction: _exploreTemples,
+            builder:
+                (context) => NearbyTemplesSection(
+                  showHeader: false,
+                  access: c.locationAccess,
+                  templesBloc: c.templesBloc,
+                  locale: locale,
+                  onAllowLocation: () async {
+                    await c.requestLocation();
+                    if (mounted &&
+                        c.locationAccess.value != LocationAccess.available) {
+                      _showLocationError();
+                    }
+                  },
+                  onRetry: c.loadTemples,
+                  onOpenTemple: _openTemple,
+                  onSeeAll:
+                      () => _push('/nearTemples', arguments: _positionArgs),
+                ),
+          ),
+          ExploreTab(
+            icon: Icons.event_outlined,
+            labelKey: 'dash_tab_events',
+            actionLabelKey: 'dash_see_all',
+            onAction: () => _push('/shahiEvents'),
+            builder:
+                (context) => FeedBuilder(
+                  feed: c.upcoming,
+                  loading: const SkeletonBlock(height: 180),
+                  builder:
+                      (context) => ValueListenableBuilder<FeedStatus>(
+                        // Re-filter once the featured event is known.
+                        valueListenable: c.featured.status,
+                        builder:
+                            (context, _, __) => UpcomingEventsList(
+                              events: c.upcoming.bloc.state.upcomingEvents,
+                              excludeEventId:
+                                  c
+                                      .featured
+                                      .bloc
+                                      .state
+                                      .eventDetailsModel
+                                      .eventId,
+                              locale: locale,
+                              onTap: () => _push('/shahiEvents'),
+                            ),
+                      ),
+                ),
+          ),
+          ExploreTab(
+            icon: Icons.auto_stories_outlined,
+            labelKey: 'dash_tab_discover',
+            builder: (context) => DiscoverPanel(onOpen: _push),
+          ),
+          ExploreTab(
+            icon: Icons.menu_book_outlined,
+            labelKey: 'dash_tab_journal',
+            builder:
+                (context) => FeedBuilder(
+                  feed: c.journal,
+                  loading: const SkeletonBlock(height: 160),
+                  builder:
+                      (context) => JournalPreviewCard(
+                        entries:
+                            c
+                                .journal
+                                .bloc
+                                .state
+                                .journalEntryListModel
+                                ?.results ??
+                            const [],
+                        locale: locale,
+                        onOpen: () => _push('/journal'),
+                      ),
+                ),
+          ),
+        ],
       ),
 
       // Featured event: hidden when the backend features nothing.
@@ -223,118 +404,10 @@ class _DashboardState extends State<Dashboard> {
         },
       ),
 
-      _gap,
-      DashboardSection(
-        title: 'dash_quick_actions'.tr(),
-        child: QuickActions(
-          actions: [
-            QuickAction(
-              icon: Icons.temple_hindu_outlined,
-              labelKey: 'dash_action_temples',
-              onTap: _exploreTemples,
-            ),
-            QuickAction(
-              icon: Icons.groups_outlined,
-              labelKey: 'dash_action_crowd',
-              onTap: () => _push('/liveCroud'),
-            ),
-            QuickAction(
-              icon: Icons.event_outlined,
-              labelKey: 'dash_action_events',
-              onTap: () => _push('/shahiEvents'),
-            ),
-            QuickAction(
-              icon: Icons.campaign_outlined,
-              labelKey: 'dash_action_updates',
-              onTap: () => _push('/notifications'),
-            ),
-          ],
-        ),
-      ),
-
-      _gap,
-      DashboardSection(
-        title: 'dash_crowd_title'.tr(),
-        child: FeedBuilder(
-          feed: c.crowd,
-          loading: const SkeletonBlock(height: 200),
-          builder:
-              (context) => CrowdSummaryCard(
-                zones: c.crowd.bloc.state.zoneModel,
-                checkedAt: c.crowd.lastUpdated,
-                locale: locale,
-                onOpenMap: () => _push('/liveCroud'),
-              ),
-        ),
-      ),
-      AppSpacing.gapMd,
+      AppSpacing.gapLg,
       const PilgrimTip(),
-
-      _gap,
-      NearbyTemplesSection(
-        access: c.locationAccess,
-        templesBloc: c.templesBloc,
-        locale: locale,
-        onAllowLocation: () async {
-          await c.requestLocation();
-          if (mounted && c.locationAccess.value != LocationAccess.available) {
-            _showLocationError();
-          }
-        },
-        onRetry: c.loadTemples,
-        onOpenTemple: _openTemple,
-        onSeeAll: () => _push('/nearTemples', arguments: _positionArgs),
-      ),
-
-      _gap,
-      DashboardSection(
-        title: 'dash_upcoming_title'.tr(),
-        actionLabel: 'dash_see_all'.tr(),
-        onAction: () => _push('/shahiEvents'),
-        child: FeedBuilder(
-          feed: c.upcoming,
-          loading: const SkeletonBlock(height: 180),
-          builder:
-              (context) => ValueListenableBuilder<FeedStatus>(
-                // Re-filter once the featured event is known.
-                valueListenable: c.featured.status,
-                builder:
-                    (context, _, __) => UpcomingEventsList(
-                      events: c.upcoming.bloc.state.upcomingEvents,
-                      excludeEventId:
-                          c.featured.bloc.state.eventDetailsModel.eventId,
-                      locale: locale,
-                      onTap: () => _push('/shahiEvents'),
-                    ),
-              ),
-        ),
-      ),
-
-      _gap,
-      AiExplorerCard(onOpen: () => _push('/aichat')),
-
-      _gap,
-      DashboardSection(
-        title: 'dash_journal_title'.tr(),
-        child: FeedBuilder(
-          feed: c.journal,
-          loading: const SkeletonBlock(height: 160),
-          builder:
-              (context) => JournalPreviewCard(
-                entries:
-                    c.journal.bloc.state.journalEntryListModel?.results ??
-                    const [],
-                locale: locale,
-                onOpen: () => _push('/journal'),
-              ),
-        ),
-      ),
     ];
   }
-
-  static const Widget _gap = SizedBox(
-    height: AppSpacing.sectionGap + AppSpacing.sm,
-  );
 }
 
 class _BrandTitle extends StatelessWidget {
@@ -342,22 +415,10 @@ class _BrandTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colorScheme;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.xs + AppSpacing.xxs),
-          decoration: BoxDecoration(
-            color: colors.primary,
-            borderRadius: AppRadius.smAll,
-          ),
-          child: Icon(
-            Icons.temple_hindu_rounded,
-            size: 20,
-            color: colors.onPrimary,
-          ),
-        ),
+        const AppLogo(size: 36),
         AppSpacing.gapSm,
         Flexible(
           child: Text(

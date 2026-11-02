@@ -44,7 +44,16 @@ class TempleDirections {
     try {
       final response = await http.get(Uri.parse(url));
       final data = json.decode(response.body);
-      if (data['status'] != 'OK') return null;
+      if (data['status'] != 'OK') {
+        // Debug builds say why (e.g. REQUEST_DENIED: billing not enabled,
+        // invalid key) instead of failing silently. The key isn't logged.
+        if (kDebugMode) {
+          debugPrint(
+            'Directions API: ${data['status']} ${data['error_message'] ?? ''}',
+          );
+        }
+        return null;
+      }
       final route = data['routes'][0];
       final leg = route['legs'][0];
       final decoded = PolylinePoints.decodePolyline(

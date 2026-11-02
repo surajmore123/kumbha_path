@@ -730,7 +730,7 @@ void main() {
       expect(find.text('12 mins · 4.5 km'), findsOneWidget);
     });
 
-    testWidgets('route failure: no fabricated distance or time', (
+    testWidgets('route failure: dashed straight line, labelled, no time', (
       tester,
     ) async {
       await pump(
@@ -741,11 +741,14 @@ void main() {
           FakeDirections(),
         ),
       );
+      // A two-point straight line from the user to the temple is drawn.
+      expect(find.text('polyline:2'), findsOneWidget);
+      expect(find.textContaining('in a straight line'), findsOneWidget);
       expect(
-        find.text("Route preview isn't available right now."),
+        find.textContaining("road route couldn't be loaded"),
         findsOneWidget,
       );
-      expect(find.textContaining('km'), findsNothing);
+      expect(find.textContaining('min'), findsNothing);
     });
 
     testWidgets('Google Maps failing to open is reported', (tester) async {

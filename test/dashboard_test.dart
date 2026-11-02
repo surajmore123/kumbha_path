@@ -26,6 +26,14 @@ import 'package:kumbha_path/src/models/zone_model.dart';
 import 'package:kumbha_path/src/modules/dashboard/dashboard.dart';
 import 'package:kumbha_path/src/modules/dashboard/dashboard_controller.dart';
 import 'package:kumbha_path/src/modules/dashboard/dashboard_formatters.dart';
+import 'package:kumbha_path/src/modules/dashboard/widgets/companion_cards.dart';
+import 'package:kumbha_path/src/modules/dashboard/widgets/crowd_summary.dart';
+import 'package:kumbha_path/src/modules/dashboard/widgets/explore_hub.dart';
+import 'package:kumbha_path/src/modules/journey/data/journey_repository.dart';
+import 'package:kumbha_path/src/modules/patrika/data/patrika_repository.dart';
+
+import 'journey_fakes.dart';
+import 'patrika_fakes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ---------------------------------------------------------------- fakes
@@ -385,10 +393,26 @@ Future<void> scrollTo(WidgetTester tester, Finder finder) async {
   await tester.pump(const Duration(milliseconds: 300));
 }
 
+/// Selects a tab of the Explore panel (Plan, Crowd, Temples, Events, Journal).
+Future<void> openTab(WidgetTester tester, String label) async {
+  final tab = find.descendant(
+    of: find.byType(ExploreHub),
+    matching: find.text(label),
+  );
+  await tester.ensureVisible(tab);
+  await tester.pump();
+  await tester.tap(tab);
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
 // ---------------------------------------------------------------- tests
 
 void main() {
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    JourneyServices.repository = FakeJourneyRepository();
+    PatrikaServices.repository = FakePatrikaRepository();
+  });
 
   group('formatters', () {
     final now = DateTime(2027, 1, 10, 22, 0);
@@ -420,6 +444,101 @@ void main() {
     });
   });
 
+  group('first screen', () {
+    // The shortcuts must be reachable without scrolling on a typical
+    // phone (360 × 780 here), in one row.
+    for (final scale in [AppFontScale.standard, AppFontScale.large]) {
+      testWidgets('AI Guru bar and every feature tab visible without scrolling '
+          '(${scale.name} text)', (tester) async {
+        await pumpDashboard(
+          tester,
+          Harness(alerts: const []),
+          fontScale: scale,
+        );
+        final viewport = tester.getRect(find.byType(ListView));
+        final labels = [
+          'Ask AI Guru',
+          'Plan',
+          'Crowd',
+          'Temples',
+          'Events',
+          'Discover',
+          'Journal',
+        ];
+        for (final label in labels) {
+          final finder = find.descendant(
+            of: find.byType(ListView),
+            matching: find.text(label),
+          );
+          expect(finder, findsOneWidget, reason: label);
+          expect(
+            tester.getRect(finder).bottom,
+            lessThan(viewport.bottom),
+            reason: '$label should be on the first screen',
+          );
+        }
+        final rowY = {
+          for (final label in labels.skip(1))
+            tester
+                .getCenter(
+                  find.descendant(
+                    of: find.byType(ListView),
+                    matching: find.text(label),
+                  ),
+                )
+                .dy
+                .round(),
+        };
+        expect(rowY.length, 1, reason: 'the tabs share one row');
+        // The selected preview starts on the first screen too.
+        expect(
+          tester.getRect(find.text('Busiest zones')).top,
+          lessThan(viewport.bottom),
+        );
+      });
+    }
+
+    testWidgets('the separate AI card is gone; the bar opens the chat', (
+      tester,
+    ) async {
+      await pumpDashboard(tester, Harness());
+      expect(find.text('AI Spiritual Explorer'), findsNothing);
+    });
+
+    testWidgets('one preview at a time; tap or swipe to switch', (
+      tester,
+    ) async {
+      await pumpDashboard(tester, Harness());
+      expect(find.text('Busiest zones'), findsOneWidget);
+      expect(find.text('Shri Kalaram Mandir'), findsNothing);
+
+      await openTab(tester, 'Temples');
+      expect(find.text('Shri Kalaram Mandir'), findsOneWidget);
+      expect(find.text('Busiest zones'), findsNothing);
+
+      // Swipe left: next tab (Events).
+      await tester.fling(
+        find.text('Shri Kalaram Mandir'),
+        const Offset(-300, 0),
+        1000,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Kalaram Temple Utsav'), findsOneWidget);
+    });
+
+    testWidgets('journal card is as wide as the other cards', (tester) async {
+      await pumpDashboard(
+        tester,
+        Harness(journal: JournalEntryListModel.empty),
+      );
+      final crowdWidth = tester.getSize(find.byType(CrowdSummaryCard)).width;
+      await openTab(tester, 'Journal');
+      final journalWidth =
+          tester.getSize(find.byType(JournalPreviewCard)).width;
+      expect(journalWidth, crowdWidth);
+    });
+  });
+
   group('content', () {
     testWidgets('renders real data in every section', (tester) async {
       final h = Harness();
@@ -427,30 +546,34 @@ void main() {
 
       expect(find.text('Namaste, Savitri'), findsOneWidget);
       expect(find.text('Heavy crowd near the ghat'), findsOneWidget);
-      expect(find.textContaining('Shahi Snan –'), findsOneWidget);
-      expect(find.text('In 12 days'), findsOneWidget);
 
-      await scrollTo(tester, find.text('Busiest zones'));
+      expect(find.text('Busiest zones'), findsOneWidget);
       expect(find.text('Ramkund Ghat'), findsWidgets);
       expect(find.text('92% full'), findsOneWidget);
       // A zone without a status counts as "Unavailable", never "Low".
       expect(find.text('Unavailable · 1'), findsOneWidget);
       expect(find.text('Low · 1'), findsOneWidget);
 
-      await scrollTo(tester, find.text('Shri Kalaram Mandir'));
+      await openTab(tester, 'Temples');
+      expect(find.text('Shri Kalaram Mandir'), findsOneWidget);
       expect(find.text('1.2 km away · Nashik'), findsOneWidget);
       // No distance from the API -> no distance shown.
       expect(find.textContaining('Sita Gufa'), findsOneWidget);
       expect(find.textContaining('km away'), findsOneWidget);
 
-      await scrollTo(tester, find.textContaining('Ganga Aarti'));
+      await openTab(tester, 'Events');
+      expect(find.textContaining('Ganga Aarti'), findsOneWidget);
       // Featured event is not repeated in the upcoming list.
       expect(find.text('Shahi Snan'), findsNothing);
       expect(find.text('Kalaram Temple Utsav'), findsOneWidget);
       expect(find.text('All day'), findsOneWidget);
 
-      await scrollTo(tester, find.text('Morning at Ramkund'));
+      await openTab(tester, 'Journal');
+      expect(find.text('Morning at Ramkund'), findsOneWidget);
       expect(find.text('The aarti lamps on the Godavari.'), findsOneWidget);
+
+      await scrollTo(tester, find.textContaining('Shahi Snan –'));
+      expect(find.text('In 12 days'), findsOneWidget);
     });
 
     testWidgets('greets without a name when the profile has none', (
@@ -463,6 +586,7 @@ void main() {
     testWidgets('past featured event says Concluded', (tester) async {
       final past = _isoDate(_now.subtract(const Duration(days: 3)));
       await pumpDashboard(tester, Harness(featured: featuredEvent(date: past)));
+      await scrollTo(tester, find.text('Concluded'));
       expect(find.text('Concluded'), findsOneWidget);
     });
 
@@ -473,7 +597,7 @@ void main() {
       );
       expect(find.text('Featured event'), findsNothing);
       expect(find.text('Active alert'), findsNothing);
-      expect(find.text('Plan your visit'), findsOneWidget);
+      expect(find.byType(ExploreHub), findsOneWidget);
     });
 
     testWidgets('empty states', (tester) async {
@@ -485,16 +609,18 @@ void main() {
           journal: JournalEntryListModel.empty,
         ),
       );
-      await scrollTo(
-        tester,
+      expect(
         find.text('No crowd data is available right now.'),
+        findsOneWidget,
       );
-      await scrollTo(tester, find.text('No upcoming events right now.'));
-      await scrollTo(
-        tester,
+      await openTab(tester, 'Events');
+      expect(find.text('No upcoming events right now.'), findsOneWidget);
+      await openTab(tester, 'Journal');
+      expect(
         find.text(
           'Capture your darshans, thoughts and moments from the Kumbh.',
         ),
+        findsOneWidget,
       );
     });
   });
@@ -526,7 +652,6 @@ void main() {
       final h = Harness();
       h.crowdBloc.respond = (_) => null; // never answers
       await pumpDashboard(tester, h);
-      await scrollTo(tester, find.text('Crowd status'));
       expect(find.text('Busiest zones'), findsNothing);
       expect(find.text('Try again'), findsNothing);
 
@@ -555,7 +680,7 @@ void main() {
     ) async {
       final h = Harness(access: LocationAccess.needsPermission);
       await pumpDashboard(tester, h);
-      await scrollTo(tester, find.text('Allow location'));
+      await openTab(tester, 'Temples');
       expect(h.templesBloc.requests, 0);
       expect(find.textContaining('km away'), findsNothing);
 
@@ -569,8 +694,8 @@ void main() {
 
     testWidgets('location unavailable explains how to fix it', (tester) async {
       await pumpDashboard(tester, Harness(access: LocationAccess.unavailable));
-      await scrollTo(tester, find.textContaining('device settings'));
-      expect(find.text('See all'), findsOneWidget); // only upcoming's
+      await openTab(tester, 'Temples');
+      expect(find.textContaining('device settings'), findsOneWidget);
     });
   });
 
@@ -590,20 +715,27 @@ void main() {
       await pumpDashboard(tester, Harness());
       await tester.tap(find.byTooltip('Notifications'));
       await tester.pumpAndSettle();
-      expect(pushed, ['/notifications']);
+      expect(pushed, ['/notificationCentre']);
     });
 
-    for (final (label, route) in [
-      ('Crowd map', '/liveCroud'),
-      ('Events', '/shahiEvents'),
-      ('Updates', '/notifications'),
-      ('View events', '/shahiEvents'),
-      ('Open crowd map', '/liveCroud'),
-      ('Ask AI Guru', '/aichat'),
-      ('Open journal', '/journal'),
+    for (final (tab, label, route) in [
+      (null, 'Open crowd map', '/liveCroud'),
+      ('Events', 'See all', '/shahiEvents'),
+      ('Journal', 'Open journal', '/journal'),
+      ('Plan', 'Plan My Journey', '/journeyForm'),
+      ('Plan', 'My journeys', '/journeys'),
+      ('Plan', 'Stay & Travel', '/booking'),
+      ('Discover', 'News', '/kumbhNews'),
+      ('Discover', 'Learn', '/learn'),
+      ('Discover', 'Akhadas', '/akhadas'),
+      (null, 'View events', '/shahiEvents'),
+      (null, 'Ask AI Guru', '/aichat'),
     ]) {
-      testWidgets('"$label" opens $route', (tester) async {
+      testWidgets('"$label"${tab == null ? '' : ' ($tab tab)'} opens $route', (
+        tester,
+      ) async {
         await pumpDashboard(tester, Harness());
+        if (tab != null) await openTab(tester, tab);
         await expectRoute(
           tester,
           find.descendant(
@@ -615,26 +747,20 @@ void main() {
       });
     }
 
-    testWidgets('Temples quick action opens /nearTemples with coordinates', (
+    testWidgets('Temples "See all" opens /nearTemples with coordinates', (
       tester,
     ) async {
       await pumpDashboard(tester, Harness());
-      await expectRoute(
-        tester,
-        find.descendant(
-          of: find.byType(ListView),
-          matching: find.text('Temples'),
-        ),
-        '/nearTemples',
-      );
+      await openTab(tester, 'Temples');
+      await expectRoute(tester, find.text('See all'), '/nearTemples');
     });
 
-    testWidgets('Temples quick action without location shows a message', (
+    testWidgets('Temples "See all" without location shows a message', (
       tester,
     ) async {
       await pumpDashboard(tester, Harness(access: LocationAccess.unavailable));
-      await scrollTo(tester, find.text('Temples'));
-      await tester.tap(find.text('Temples'));
+      await openTab(tester, 'Temples');
+      await tester.tap(find.text('See all'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       expect(pushed, isEmpty);
@@ -660,6 +786,19 @@ void main() {
                 size: const Size(320, 640),
               );
               final scrollable = find.byType(Scrollable).first;
+              // Every Explore tab, then the rest of the page.
+              await scrollTo(tester, find.byType(ExploreHub));
+              final tabs = find.descendant(
+                of: find.byType(ExploreHub),
+                matching: find.byType(InkWell),
+              );
+              for (var t = 0; t < 6; t++) {
+                await tester.ensureVisible(tabs.at(t));
+                await tester.pump();
+                await tester.tap(tabs.at(t));
+                await tester.pump(const Duration(milliseconds: 300));
+                expect(tester.takeException(), isNull);
+              }
               for (var i = 0; i < 40; i++) {
                 await tester.drag(scrollable, const Offset(0, -400));
                 await tester.pump(const Duration(milliseconds: 50));
@@ -684,8 +823,15 @@ void main() {
     testWidgets('localized: Marathi strings and dates', (tester) async {
       await pumpDashboard(tester, Harness(), locale: const Locale('mr'));
       expect(find.text('नमस्कार, Savitri'), findsOneWidget);
-      await scrollTo(tester, find.text('तुमच्या भेटीचे नियोजन करा'));
-      expect(find.text('तुमच्या भेटीचे नियोजन करा'), findsOneWidget);
+      for (final tab in ['गर्दी', 'मंदिरे', 'कार्यक्रम', 'दैनंदिनी']) {
+        expect(
+          find.descendant(
+            of: find.byType(ExploreHub),
+            matching: find.text(tab),
+          ),
+          findsOneWidget,
+        );
+      }
     });
   });
 }

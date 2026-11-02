@@ -9,8 +9,6 @@ class UserApi extends Api {
       );
       return user;
     } catch (e, _) {
-      print(e);
-      print('error');
     }
   }
 
@@ -22,8 +20,6 @@ class UserApi extends Api {
       );
       return otpverify;
     } catch (e, _) {
-      print(e);
-      print('error');
     }
   }
 
@@ -33,11 +29,8 @@ class UserApi extends Api {
         path: '/api/auth/profile/',
         parameters: jsonData,
       );
-      print('response from user data $usercreate');
       return usercreate;
     } catch (e, _) {
-      print(e);
-      print('error');
     }
   }
 
@@ -47,11 +40,8 @@ class UserApi extends Api {
         path: '/api/auth/profile/image/',
         parameters: jsonData,
       );
-      print('response from profile image upload $profileImageUpload');
       return profileImageUpload;
     } catch (e, _) {
-      print(e);
-      print('error');
     }
   }
 
@@ -61,11 +51,8 @@ class UserApi extends Api {
         path: '/api/auth/profile/',
         parameters: jsonData,
       );
-      print('response from get user profile $userProfile');
       return userProfile;
     } catch (e, _) {
-      print(e);
-      print('error');
     }
   }
 
@@ -75,11 +62,36 @@ class UserApi extends Api {
         path: '/api/auth/fcm/register/',
         parameters: jsonData,
       );
-      print('response from fcm registered $fcmresult');
       return fcmresult;
     } catch (e, _) {
-      print(e);
-      print('error');
+    }
+  }
+
+  /// GET /api/auth/notification-preferences/ → {status, data: {category: bool}}
+  Future<dynamic> getNotificationPreferences(
+    Map<String, Object> jsonData,
+  ) async {
+    try {
+      return await requestGet(
+        path: '/api/auth/notification-preferences/',
+        parameters: jsonData,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// PATCH one or more categories, e.g. {"crowd_alerts": false}.
+  Future<dynamic> updateNotificationPreferences(
+    Map<String, Object> jsonData,
+  ) async {
+    try {
+      return await requestPATCH(
+        path: '/api/auth/notification-preferences/',
+        parameters: jsonData,
+      );
+    } catch (_) {
+      return null;
     }
   }
 }

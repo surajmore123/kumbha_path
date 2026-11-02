@@ -16,13 +16,7 @@ class ZoneLiveDetailsModel extends Equatable {
   });
 
   @override
-  List<Object?> get props => [
-        status,
-        zone,
-        gates,
-        alerts,
-        alternatives,
-      ];
+  List<Object?> get props => [status, zone, gates, alerts, alternatives];
 
   ZoneLiveDetailsModel copyWith({
     String? status,
@@ -40,28 +34,27 @@ class ZoneLiveDetailsModel extends Equatable {
     );
   }
 
- factory ZoneLiveDetailsModel.fromJson(Map<String, dynamic> json) {
-  return ZoneLiveDetailsModel(
-    status: json['status'] ?? "",
-    zone: json['zone'] != null
-        ? ZoneInfoModel.fromJson(json['zone'])
-        : null,
-    gates: (json['gates'] as List<dynamic>?)
-            ?.map((e) => GateModel.fromJson(e))
-            .toList() ??
-        [],
-    alerts: (json['alerts'] as List<dynamic>?)
-            ?.map((e) => AlertModel.fromJson(e))
-            .toList() ??
-        [],
-    alternatives:
-        (json['alternatives'] as List<dynamic>?)
-                ?.map((e) =>
-                    AlternativeZoneModel.fromJson(e))
-                .toList() ??
-            [],
-  );
-}
+  factory ZoneLiveDetailsModel.fromJson(Map<String, dynamic> json) {
+    return ZoneLiveDetailsModel(
+      status: json['status'] ?? "",
+      zone: json['zone'] != null ? ZoneInfoModel.fromJson(json['zone']) : null,
+      gates:
+          (json['gates'] as List<dynamic>?)
+              ?.map((e) => GateModel.fromJson(e))
+              .toList() ??
+          [],
+      alerts:
+          (json['alerts'] as List<dynamic>?)
+              ?.map((e) => AlertModel.fromJson(e))
+              .toList() ??
+          [],
+      alternatives:
+          (json['alternatives'] as List<dynamic>?)
+              ?.map((e) => AlternativeZoneModel.fromJson(e))
+              .toList() ??
+          [],
+    );
+  }
 
   static const empty = ZoneLiveDetailsModel(
     status: "",
@@ -75,7 +68,6 @@ class ZoneLiveDetailsModel extends Equatable {
   String toString() =>
       '{status:$status, zone:$zone, alertsCount:${alerts?.length}}';
 }
-
 
 class ZoneInfoModel extends Equatable {
   final String? code;
@@ -96,13 +88,13 @@ class ZoneInfoModel extends Equatable {
 
   @override
   List<Object?> get props => [
-        code,
-        name,
-        capacity,
-        totalPeople,
-        occupancyPercent,
-        status,
-      ];
+    code,
+    name,
+    capacity,
+    totalPeople,
+    occupancyPercent,
+    status,
+  ];
 
   factory ZoneInfoModel.fromJson(Map<String, dynamic> json) {
     return ZoneInfoModel(
@@ -110,8 +102,7 @@ class ZoneInfoModel extends Equatable {
       name: json['name'] ?? "",
       capacity: json['capacity'] ?? 0,
       totalPeople: json['total_people'] ?? 0,
-      occupancyPercent:
-          (json['occupancy_percent'] as num?)?.toDouble() ?? 0.0,
+      occupancyPercent: (json['occupancy_percent'] as num?)?.toDouble() ?? 0.0,
       status: json['status'] ?? "",
     );
   }
@@ -134,10 +125,7 @@ class AlertModel extends Equatable {
   final String? title;
   final String? severity;
 
-  const AlertModel({
-    this.title,
-    this.severity,
-  });
+  const AlertModel({this.title, this.severity});
 
   @override
   List<Object?> get props => [title, severity];
@@ -149,14 +137,10 @@ class AlertModel extends Equatable {
     );
   }
 
-  static const empty = AlertModel(
-    title: "",
-    severity: "",
-  );
+  static const empty = AlertModel(title: "", severity: "");
 
   @override
-  String toString() =>
-      '{title:$title, severity:$severity}';
+  String toString() => '{title:$title, severity:$severity}';
 }
 
 class GateModel extends Equatable {
@@ -169,7 +153,6 @@ class GateModel extends Equatable {
     return const GateModel();
   }
 }
-
 
 class AlternativeZoneModel extends Equatable {
   const AlternativeZoneModel();

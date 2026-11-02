@@ -25,6 +25,7 @@ class NearbyTemplesSection extends StatelessWidget {
     required this.onRetry,
     required this.onOpenTemple,
     required this.onSeeAll,
+    this.showHeader = true,
   });
 
   final ValueListenable<LocationAccess> access;
@@ -35,6 +36,9 @@ class NearbyTemplesSection extends StatelessWidget {
   final ValueChanged<TempleModel> onOpenTemple;
   final VoidCallback onSeeAll;
 
+  /// False inside the dashboard's Explore panel, which has its own tabs.
+  final bool showHeader;
+
   static const int previewCount = 3;
 
   @override
@@ -43,50 +47,52 @@ class NearbyTemplesSection extends StatelessWidget {
       valueListenable: access,
       builder: (context, access, _) {
         final canSeeAll = access == LocationAccess.available;
+        final Widget content = switch (access) {
+          LocationAccess.checking => const _TempleSkeleton(),
+          LocationAccess.needsPermission => _LocationPrompt(
+            onAllow: onAllowLocation,
+          ),
+          LocationAccess.unavailable => AppCard(
+            padding: EdgeInsets.zero,
+            child: AppEmptyState(
+              compact: true,
+              icon: Icons.location_off_outlined,
+              title: 'dash_location_needed_title'.tr(),
+              message: 'dash_location_unavailable'.tr(),
+              actionLabel: 'common_retry'.tr(),
+              actionIcon: Icons.refresh_rounded,
+              onAction: onAllowLocation,
+            ),
+          ),
+          LocationAccess.available =>
+            BlocBuilder<Bloc<AppEvent, AppState>, AppState>(
+              bloc: templesBloc,
+              builder: (context, state) {
+                return switch (state.status) {
+                  AppStatus.initial ||
+                  AppStatus.loading => const _TempleSkeleton(),
+                  AppStatus.failure => AppCard(
+                    padding: EdgeInsets.zero,
+                    child: AppErrorView(compact: true, onRetry: onRetry),
+                  ),
+                  _ => _TempleList(
+                    temples:
+                        (state.nearbyTemples.temples ?? const [])
+                            .take(previewCount)
+                            .toList(),
+                    locale: locale,
+                    onOpen: onOpenTemple,
+                  ),
+                };
+              },
+            ),
+        };
+        if (!showHeader) return content;
         return DashboardSection(
           title: 'dash_nearby_title'.tr(),
           actionLabel: canSeeAll ? 'dash_see_all'.tr() : null,
           onAction: canSeeAll ? onSeeAll : null,
-          child: switch (access) {
-            LocationAccess.checking => const _TempleSkeleton(),
-            LocationAccess.needsPermission => _LocationPrompt(
-              onAllow: onAllowLocation,
-            ),
-            LocationAccess.unavailable => AppCard(
-              padding: EdgeInsets.zero,
-              child: AppEmptyState(
-                compact: true,
-                icon: Icons.location_off_outlined,
-                title: 'dash_location_needed_title'.tr(),
-                message: 'dash_location_unavailable'.tr(),
-                actionLabel: 'common_retry'.tr(),
-                actionIcon: Icons.refresh_rounded,
-                onAction: onAllowLocation,
-              ),
-            ),
-            LocationAccess.available =>
-              BlocBuilder<Bloc<AppEvent, AppState>, AppState>(
-                bloc: templesBloc,
-                builder: (context, state) {
-                  return switch (state.status) {
-                    AppStatus.initial ||
-                    AppStatus.loading => const _TempleSkeleton(),
-                    AppStatus.failure => AppCard(
-                      padding: EdgeInsets.zero,
-                      child: AppErrorView(compact: true, onRetry: onRetry),
-                    ),
-                    _ => _TempleList(
-                      temples:
-                          (state.nearbyTemples.temples ?? const [])
-                              .take(previewCount)
-                              .toList(),
-                      locale: locale,
-                      onOpen: onOpenTemple,
-                    ),
-                  };
-                },
-              ),
-          },
+          child: content,
         );
       },
     );

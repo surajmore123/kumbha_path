@@ -23,15 +23,15 @@ class AlertDetailsModel extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        zoneCode,
-        zoneName,
-        type,
-        severity,
-        title,
-        description,
-        startTime,
-      ];
+    id,
+    zoneCode,
+    zoneName,
+    type,
+    severity,
+    title,
+    description,
+    startTime,
+  ];
 
   AlertDetailsModel copyWith({
     String? id,
